@@ -19,7 +19,10 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     private let findCount = NSTextField(labelWithString: "")
     private var matches: [PDFSelection] = []
     private var matchIndex = -1
-    private var searching = false
+    /// Advances on every search begun or cancelled.
+    private var searchGeneration = 0
+    /// The generation of the search in progress; nil when none runs.
+    private var runningSearch: Int?
     /// The text the current matches are for.
     private var searchedText = ""
     /// The page in view when the current search began.
@@ -151,8 +154,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     /// Shows `pdf` at the page, scroll point and zoom of `state`, or fitted to width at its first
     /// page when `state` is nil.
     func display(_ pdf: PDFDocument, restoring state: ViewState? = nil) {
-        if let old = pdfView.document, old !== pdf, old.isFinding { old.cancelFindString() }
-        searching = false
+        cancelSearch(on: pdfView.document)
         clearMatches()
         pdfView.document = pdf
         guard let state else {
@@ -238,37 +240,60 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     @objc func findPrevious(_ sender: Any?) { step(by: -1) }
 
     @objc func closeFind(_ sender: Any?) {
-        pdfView.document?.cancelFindString()
-        searching = false
+        cancelSearch(on: pdfView.document)
         clearMatches()
         findStrip.isHidden = true
         window?.makeFirstResponder(pdfView)
     }
 
-    /// ⌘G and ⇧⌘G open the strip when there is nothing to cycle through.
+    /// ⌘G and ⇧⌘G open the strip when there is nothing to cycle through. With matches but none
+    /// chosen yet, either goes to the first match at or after the page the search began on.
     private func step(by delta: Int) {
         guard !matches.isEmpty else {
             if findStrip.isHidden || findField.stringValue.isEmpty { showFind(nil) } else { startSearch() }
             return
         }
-        matchIndex = (matchIndex + delta + matches.count) % matches.count
+        if matchIndex < 0 {
+            matchIndex = firstMatchFromStartPage ?? 0
+        } else {
+            matchIndex = (matchIndex + delta + matches.count) % matches.count
+        }
         showCurrentMatch()
+    }
+
+    private var firstMatchFromStartPage: Int? {
+        guard let doc = pdfView.document else { return nil }
+        return matches.firstIndex { match in
+            match.pages.first.map { doc.index(for: $0) >= searchStartPage } ?? false
+        }
     }
 
     @objc private func findFieldChanged(_ sender: Any?) { startSearch() }
 
+    private var isSearching: Bool { runningSearch != nil }
+
     private func startSearch() {
         guard let doc = pdfView.document, !doc.isLocked else { return }
-        if searching { doc.cancelFindString() }
+        cancelSearch(on: doc)
         clearMatches()
         let text = findField.stringValue
         searchedText = text
         guard !text.isEmpty else { return }
         doc.delegate = self
         searchStartPage = currentPageIndex
-        searching = true
+        searchGeneration += 1
+        runningSearch = searchGeneration
         findCount.stringValue = "Searching…"
         doc.beginFindString(text, withOptions: [.caseInsensitive])
+    }
+
+    /// Stops the running search. `cancelFindString` posts the search's end notification before it
+    /// returns; the generation moves first, so that end is never taken for a completed search.
+    private func cancelSearch(on doc: PDFDocument?) {
+        guard isSearching else { return }
+        searchGeneration += 1
+        runningSearch = nil
+        doc?.cancelFindString()
     }
 
     private func clearMatches() {
@@ -282,8 +307,9 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     /// Matches arrive in page order; the first shown is the first at or after the page in view
     /// when the search began.
     func didMatchString(_ instance: PDFSelection) {
-        guard searching, let doc = pdfView.document,
-              let page = instance.pages.first, page.document === doc else { return }
+        guard isSearching, let doc = pdfView.document,
+              let page = instance.pages.first, page.document === doc,
+              instance.string?.caseInsensitiveCompare(searchedText) == .orderedSame else { return }
         instance.color = .systemYellow
         matches.append(instance)
         if matchIndex < 0, doc.index(for: page) >= searchStartPage {
@@ -293,11 +319,12 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         updateCount()
     }
 
-    /// Ignores the end of a search that a newer one replaced or that ran on a replaced document.
+    /// Completes the running search; the end of a cancelled one finds no running search and is
+    /// ignored.
     func documentDidEndDocumentFind(_ notification: Notification) {
-        guard searching, let doc = pdfView.document, notification.object as? PDFDocument === doc,
-              !doc.isFinding else { return }
-        searching = false
+        guard let token = runningSearch, token == searchGeneration, let doc = pdfView.document,
+              notification.object as? PDFDocument === doc else { return }
+        runningSearch = nil
         if matchIndex < 0, !matches.isEmpty {
             matchIndex = 0
             showCurrentMatch()
@@ -317,7 +344,9 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
 
     private func updateCount() {
         if matches.isEmpty {
-            findCount.stringValue = searching ? "Searching…" : "Not found"
+            findCount.stringValue = isSearching ? "Searching…" : "Not found"
+        } else if matchIndex < 0 {
+            findCount.stringValue = "\(matches.count) found"
         } else {
             findCount.stringValue = "\(matchIndex + 1) of \(matches.count)"
         }
@@ -326,7 +355,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     private func showCurrentMatch() {
         guard matches.indices.contains(matchIndex) else { return }
         let match = matches[matchIndex]
-        if !searching { pdfView.highlightedSelections = matches }
+        if !isSearching { pdfView.highlightedSelections = matches }
         pdfView.setCurrentSelection(match, animate: false)
         pdfView.go(to: match)
         updateCount()

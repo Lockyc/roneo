@@ -48,12 +48,19 @@ import PDFKit
 
     override func showWindows() {
         super.showWindows()
+        present(restoring: restoredView)
+    }
+
+    /// Shows the document in its window, or asks for its password, once: from `showWindows` when
+    /// opened, from `restoreState` when window restoration reopens it (which never calls
+    /// `showWindows`), whichever comes first.
+    private func present(restoring view: DocumentWindowController.ViewState?) {
         guard !didPresent, let pdf, let controller else { return }
         didPresent = true
         if pdf.isLocked {
             askForPassword(wrong: false)
         } else {
-            controller.display(pdf, restoring: restoredView)
+            controller.display(pdf, restoring: view)
         }
     }
 
@@ -78,12 +85,17 @@ import PDFKit
                 self.close()
                 return
             }
-            guard let pdf = self.pdf, pdf.unlock(withPassword: field.stringValue) else {
-                self.askForPassword(wrong: true)
-                return
+            guard let pdf = self.pdf else { return }
+            // A reload while the sheet was up may have brought an unencrypted file.
+            if pdf.isLocked {
+                guard pdf.unlock(withPassword: field.stringValue) else {
+                    self.askForPassword(wrong: true)
+                    return
+                }
+                self.password = field.stringValue
             }
-            self.password = field.stringValue
             self.controller?.display(pdf, restoring: self.preReloadView ?? self.restoredView)
+            self.preReloadView = nil
         }
     }
 
@@ -156,12 +168,16 @@ import PDFKit
 
     override func restoreState(with coder: NSCoder) {
         super.restoreState(with: coder)
-        guard coder.containsValue(forKey: Self.pageKey) else { return }
-        let view = DocumentWindowController.ViewState(
-            page: coder.decodeInteger(forKey: Self.pageKey), point: nil,
-            autoScales: coder.decodeBool(forKey: Self.fitKey),
-            scale: CGFloat(coder.decodeDouble(forKey: Self.scaleKey)))
-        restoredView = view
-        if let pdf, !pdf.isLocked, didPresent { controller?.display(pdf, restoring: view) }
+        if coder.containsValue(forKey: Self.pageKey) {
+            restoredView = DocumentWindowController.ViewState(
+                page: coder.decodeInteger(forKey: Self.pageKey), point: nil,
+                autoScales: coder.decodeBool(forKey: Self.fitKey),
+                scale: CGFloat(coder.decodeDouble(forKey: Self.scaleKey)))
+        }
+        if didPresent {
+            if let pdf, !pdf.isLocked, let restoredView { controller?.display(pdf, restoring: restoredView) }
+        } else {
+            present(restoring: restoredView)
+        }
     }
 }
