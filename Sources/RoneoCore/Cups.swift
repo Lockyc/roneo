@@ -61,6 +61,11 @@ public struct Cups {
         self.runner = runner
     }
 
+    /// Runs a CUPS query with the inherited environment.
+    func run(_ executable: String, _ args: [String]) throws -> CommandResult {
+        try runner.run(executable, args, environment: nil)
+    }
+
     public func printers() throws -> (names: [String], defaultName: String?) {
         let list = try runner.run("lpstat", ["-e"], environment: nil)
         guard list.status == 0 else { throw CupsError(command: "lpstat -e", stderr: list.stderr) }
