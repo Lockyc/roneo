@@ -1,4 +1,5 @@
 import AppKit
+import RoneoCore
 import Sparkle
 import UniformTypeIdentifiers
 
@@ -9,6 +10,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
     func applicationWillFinishLaunching(_ notification: Notification) {
         NSWindow.allowsAutomaticWindowTabbing = false
         NSApp.mainMenu = makeMainMenu()
+        // Leftovers from a crash; a minute's grace spares a job another instance is sending.
+        DispatchQueue.global(qos: .utility).async { Scratch.app.clear(olderThan: 60) }
     }
 
     func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool { false }

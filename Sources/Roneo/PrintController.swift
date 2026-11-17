@@ -43,14 +43,8 @@ final class PrintController: NSObject, NSTextFieldDelegate {
     private static let pollInterval: TimeInterval = 1
     private static let pollLimit: TimeInterval = 120
 
-    /// Scratch space for the files `lp` is given, and `emptyHome`.
-    private static let scratch = FileManager.default.temporaryDirectory.appendingPathComponent("roneo")
-    /// The `HOME` `lp` runs with: empty, so no `~/.cups/lpoptions` applies.
-    private static let emptyHome: URL = {
-        let url = scratch.appendingPathComponent("home")
-        try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
-        return url
-    }()
+    /// The `HOME` the CUPS tools run with: empty, so no `~/.cups/lpoptions` applies.
+    static let emptyHome = Scratch.app.makeEmptyHome()
 
     /// Installs the bar in `window`'s bar container in its loading state and starts loading the
     /// printers in the background.
@@ -307,7 +301,7 @@ final class PrintController: NSObject, NSTextFieldDelegate {
             let result = Result { () throws -> String in
                 // The bytes the window parsed, so pages, landscape and preflight match what is
                 // sent; PDFDocument isn't thread-safe, so the window's own is never touched here.
-                let file = try PrintableFile.write(data, password: password, scratch: Self.scratch)
+                let file = try PrintableFile.write(data, password: password, scratch: Scratch.app.directory)
                 defer { try? FileManager.default.removeItem(at: file) }
                 return try submitter.submit(JobBuilder.lpArguments(
                     settings: settings, file: file, currentPage: currentPage,
