@@ -5,8 +5,9 @@ import PDFKit
 /// memory, so the window keeps showing it if the file is replaced mid-write or deleted.
 @objc(PDFFileDocument) final class PDFFileDocument: NSDocument {
     private(set) var pdf: PDFDocument?
-    /// The password that unlocked this file, reused when a change on disk reloads it.
-    private var password: String?
+    /// The password that unlocked this file, reused when a change on disk reloads it and when
+    /// printing opens its own copy of the file.
+    private(set) var password: String?
     /// Page and zoom from window restoration, applied once the document is viewable (after unlock).
     private var restoredView: DocumentWindowController.ViewState?
     /// True once the window has shown the document or asked for its password; later `showWindows`

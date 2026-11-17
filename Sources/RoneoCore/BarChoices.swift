@@ -53,7 +53,8 @@ extension PageSelection {
             var pages = Set<Int>()
             for part in normal.split(separator: ",") {
                 let bounds = part.split(separator: "-").compactMap { Int($0) }
-                pages.formUnion(bounds[0]...(bounds.last ?? bounds[0]))
+                guard let first = bounds.first, let last = bounds.last, first <= last else { return nil }
+                pages.formUnion(first...last)
             }
             return pages.count
         }

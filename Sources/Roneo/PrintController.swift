@@ -294,6 +294,7 @@ final class PrintController: NSObject, NSTextFieldDelegate {
         let pages = settings.pages.pageCount(of: pageCount) ?? 0
         let currentPage = windowController.currentPageIndex + 1
         let landscape = PDFFacts.firstPageIsLandscape(pdf)
+        let password = document?.password
         jobGeneration += 1
         let generation = jobGeneration
         sending = true
@@ -302,8 +303,13 @@ final class PrintController: NSObject, NSTextFieldDelegate {
         let submitter = PrintSubmitter(runner: ProcessRunner(), emptyHome: Self.emptyHome)
         queue.async { [weak self] in
             let result = Result { () throws -> String in
-                // An encrypted PDF's unlocked copy can take a while to write; it is built here, off main.
-                let file = try PrintableFile.url(for: pdf, original: original, scratch: Self.scratch)
+                // PDFDocument isn't thread-safe and the view reads the window's on main, so the
+                // printable file comes from a document of its own, opened and unlocked here.
+                guard let own = PDFDocument(url: original) else { throw CocoaError(.fileReadCorruptFile) }
+                if own.isLocked, !(password.map(own.unlock(withPassword:)) ?? false) {
+                    throw CocoaError(.fileReadNoPermission)
+                }
+                let file = try PrintableFile.url(for: own, original: original, scratch: Self.scratch)
                 defer { if file.isTemporary { try? FileManager.default.removeItem(at: file.url) } }
                 return try submitter.submit(JobBuilder.lpArguments(
                     settings: settings, file: file.url, currentPage: currentPage,
