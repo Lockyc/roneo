@@ -39,7 +39,9 @@ import PDFKit
     }
 
     override func makeWindowControllers() {
-        addWindowController(DocumentWindowController())
+        let window = DocumentWindowController()
+        addWindowController(window)
+        window.printController = PrintController(window: window, document: self)
     }
 
     private var controller: DocumentWindowController? {
@@ -105,12 +107,16 @@ import PDFKit
     /// change restarts the wait; a file that can't be read (missing, mid-write) leaves the last good
     /// content on screen.
     override func presentedItemDidChange() {
-        DispatchQueue.main.async { [weak self] in self?.scheduleReload() }
+        DispatchQueue.main.async { [weak self] in
+            self?.scheduleReload()
+            self?.controller?.printController?.refresh()
+        }
     }
 
-    /// A deleted file leaves the window showing its last content.
+    /// A deleted file leaves the window showing its last content; Print disables.
     override func accommodatePresentedItemDeletion(completionHandler: @escaping (Error?) -> Void) {
         completionHandler(nil)
+        DispatchQueue.main.async { [weak self] in self?.controller?.printController?.refresh() }
     }
 
     private var fileSize: Int? {

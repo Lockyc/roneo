@@ -122,7 +122,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
             .separator(),
             item("Close", #selector(NSWindow.performClose(_:)), "w"),
             .separator(),
-            item("Print", Selector(("printFromBar:")), "p"),
+            item("Print", #selector(DocumentWindowController.printFromBar(_:)), "p"),
             item("Print with System Dialog…", #selector(DocumentWindowController.printWithSystemDialog(_:)), "p",
                  [.command, .option]),
         ])

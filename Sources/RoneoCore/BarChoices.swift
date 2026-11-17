@@ -20,15 +20,20 @@ public enum ChoiceLabel {
 public struct ColourChoices: Equatable, Sendable {
     public let colour: String
     public let grey: String
+
+    /// True for a `ColorModel` choice containing "Gray" or "Grey", in any case.
+    public static func isGrey(_ choice: String) -> Bool {
+        choice.localizedCaseInsensitiveContains("gray") || choice.localizedCaseInsensitiveContains("grey")
+    }
 }
 
 extension PrinterCapabilities {
-    /// Grey is the first `ColorModel` choice containing "Gray" or "Grey"; Colour is the default
-    /// when it isn't grey, else the first non-grey choice. Nil when the printer has no
-    /// `ColorModel`, or it lacks a grey or a non-grey choice.
+    /// Grey is the first grey `ColorModel` choice; Colour is the default when it isn't grey, else
+    /// the first non-grey choice. Nil when the printer has no `ColorModel`, or it lacks a grey or a
+    /// non-grey choice.
     public var colourChoices: ColourChoices? {
         guard let option = option("ColorModel") else { return nil }
-        func isGrey(_ c: String) -> Bool { c.localizedCaseInsensitiveContains("gray") || c.localizedCaseInsensitiveContains("grey") }
+        let isGrey = ColourChoices.isGrey
         guard let grey = option.choices.first(where: isGrey) else { return nil }
         let colour = option.defaultChoice.flatMap { isGrey($0) ? nil : $0 } ?? option.choices.first { !isGrey($0) }
         return colour.map { ColourChoices(colour: $0, grey: grey) }

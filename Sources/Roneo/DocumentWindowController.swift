@@ -10,6 +10,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     let barContainer = NSView()
     /// Fixes `barContainer` at zero height while it is empty; deactivate it when installing the bar.
     let barHeight: NSLayoutConstraint
+    /// The print bar's controller, installed by the document once the window exists.
+    var printController: PrintController?
 
     private static let sidebarWidth: CGFloat = 140
     private let thumbnails = PDFThumbnailView()
@@ -220,6 +222,11 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
 
     // MARK: File menu
 
+    /// ⌘P: sends the job with the print bar's settings.
+    @objc func printFromBar(_ sender: Any?) {
+        printController?.printFromBar()
+    }
+
     /// The system print dialog for what the print bar doesn't cover, at 100% by default.
     @objc func printWithSystemDialog(_ sender: Any?) {
         guard let window, let doc = pdfView.document, let info = document?.printInfo,
@@ -391,6 +398,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         case #selector(actualSize(_:)), #selector(zoomToFitWidth(_:)), #selector(goToPage(_:)),
              #selector(showFind(_:)), #selector(findNext(_:)), #selector(findPrevious(_:)):
             return viewable
+        case #selector(printFromBar(_:)):
+            return printController?.canPrint == true
         case #selector(printWithSystemDialog(_:)):
             return viewable && pdfView.document?.allowsPrinting == true
         default:
