@@ -91,3 +91,20 @@ launch path:
     #!/usr/bin/env bash
     for _ in {1..20}; do open "{{path}}" 2>/dev/null && exit 0; sleep 0.25; done
     open "{{path}}"
+
+# Median first-draw-ms of build/roneo.app over 5 hidden launches on FILE (never shows a window)
+perf file: bundle quit
+    #!/usr/bin/env bash
+    set -euo pipefail
+    out=$(mktemp)
+    trap 'rm -f "$out"' EXIT
+    runs=()
+    for _ in 1 2 3 4 5; do
+        : > "$out"
+        open -g -j -n --env RONEO_PERF=1 --stdout "$out" -a "{{justfile_directory()}}/{{app}}" "{{file}}"
+        for _ in {1..100}; do grep -q first-draw-ms "$out" && break; sleep 0.1; done
+        runs+=("$(awk '/first-draw-ms/{print $2}' "$out")")
+        while pgrep -x Roneo >/dev/null; do sleep 0.1; done
+    done
+    printf '%s\n' "${runs[@]}" | tr '\n' ' '; echo
+    printf '%s\n' "${runs[@]}" | sort -n | awk '{a[NR]=$1} END{print "median first-draw-ms", a[int((NR+1)/2)]}'
