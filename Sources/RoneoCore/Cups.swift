@@ -67,13 +67,13 @@ public struct Cups {
     }
 
     public func printers() throws -> (names: [String], defaultName: String?) {
-        let list = try runner.run("lpstat", ["-e"], environment: nil)
+        let list = try run("lpstat", ["-e"])
         guard list.status == 0 else { throw CupsError(command: "lpstat -e", stderr: list.stderr) }
         let names = list.stdout.split(whereSeparator: \.isNewline)
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
         // `lpstat -d` exits 0 with "no system default destination" when none is set.
-        let def = try runner.run("lpstat", ["-d"], environment: nil)
+        let def = try run("lpstat", ["-d"])
         let prefix = "system default destination:"
         var defaultName: String?
         if let line = def.stdout.split(whereSeparator: \.isNewline).first(where: { $0.hasPrefix(prefix) }) {
@@ -84,7 +84,7 @@ public struct Cups {
     }
 
     public func capabilities(for printer: String) throws -> PrinterCapabilities {
-        let r = try runner.run("lpoptions", ["-p", printer, "-l"], environment: nil)
+        let r = try run("lpoptions", ["-p", printer, "-l"])
         guard r.status == 0 else { throw CupsError(command: "lpoptions -p \(printer) -l", stderr: r.stderr) }
         return PrinterOptionsParser.parse(r.stdout)
     }

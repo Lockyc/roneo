@@ -5,11 +5,12 @@ final class PageRangeTests: XCTestCase {
     func testNormalize() {
         let table: [(String, String?)] = [
             ("1-3, 5", "1-3,5"), ("2", "2"), (" 4 - 6 ", "4-6"), ("3,3", "3,3"),
-            ("", nil), ("0", nil), ("5-2", nil), ("12", nil), ("abc", nil),
-            ("1-", nil), (",", nil), ("1,,2", nil), ("-3", nil), ("1-11", nil),
+            ("", nil), ("0", nil), ("5-2", nil), ("21", nil), ("abc", nil),
+            ("1-", nil), (",", nil), ("1,,2", nil), ("-3", nil), ("1-21", nil),
+            ("1 2", nil), ("1 0-15", nil), ("1-1 5", nil),
         ]
         for (input, expected) in table {
-            XCTAssertEqual(PageRange.normalize(input, pageCount: 10), expected, input)
+            XCTAssertEqual(PageRange.normalize(input, pageCount: 20), expected, input)
         }
     }
 }

@@ -9,19 +9,52 @@ public enum JobState: Equatable, Sendable {
 }
 
 extension Cups {
-    /// `.printing` while the job is queued, `.done` once it is listed as completed, otherwise
-    /// `.failed` with the printer's own state line.
+    /// `.printing` while the job is queued. A job in the completed list is `.done` unless its
+    /// state reasons say it was cancelled, aborted or ended with errors, which is `.failed` with
+    /// those reasons. A job in neither list is `.failed` with the printer's own state line.
+    /// Throws `CupsError` when `lpstat` itself fails, so a scheduler hiccup never reads as a
+    /// failed job.
     public func jobState(id: String, printer: String) throws -> JobState {
-        if try lists(id, ["-W", "not-completed", "-o", printer]) { return .printing }
-        if try lists(id, ["-W", "completed", "-o", printer]) { return .done }
-        let r = try run("lpstat", ["-p", printer])
-        let line = r.stdout.split(whereSeparator: \.isNewline).first
+        let active = try query(["-W", "not-completed", "-o", printer])
+        if active.split(whereSeparator: \.isNewline).contains(where: { Self.jobID($0) == id }) { return .printing }
+
+        let completed = try query(["-l", "-W", "completed", "-o", printer])
+        if let reasons = Self.stateReasons(of: id, in: completed) {
+            let bad = reasons.filter { r in ["cancel", "abort", "error"].contains { r.contains($0) } }
+            return bad.isEmpty ? .done : .failed(bad.map { $0.replacingOccurrences(of: "-", with: " ") }.joined(separator: ", "))
+        }
+
+        let line = try query(["-p", printer]).split(whereSeparator: \.isNewline).first
             .map { $0.trimmingCharacters(in: .whitespaces) } ?? ""
         return .failed(line.isEmpty ? "The job didn't complete" : line)
     }
 
-    private func lists(_ id: String, _ args: [String]) throws -> Bool {
+    private func query(_ args: [String]) throws -> String {
         let r = try run("lpstat", args)
-        return r.stdout.split(whereSeparator: \.isNewline).contains { $0.split(separator: " ").first.map(String.init) == id }
+        guard r.status == 0 else { throw CupsError(command: "lpstat " + args.joined(separator: " "), stderr: r.stderr) }
+        return r.stdout
+    }
+
+    private static func jobID(_ line: Substring) -> String? {
+        line.first?.isWhitespace == false ? line.split(separator: " ").first.map(String.init) : nil
+    }
+
+    /// The `Alerts:` reasons in `id`'s block of `lpstat -l` output; nil when the job is absent.
+    private static func stateReasons(of id: String, in output: String) -> [String]? {
+        var inBlock = false
+        var found = false
+        var reasons: [String] = []
+        for line in output.split(whereSeparator: \.isNewline) {
+            if line.first?.isWhitespace == false {
+                inBlock = jobID(line) == id
+                found = found || inBlock
+            } else if inBlock {
+                let t = line.trimmingCharacters(in: .whitespaces)
+                if t.hasPrefix("Alerts:") {
+                    reasons = t.dropFirst("Alerts:".count).split(whereSeparator: { $0 == " " || $0 == "," }).map(String.init)
+                }
+            }
+        }
+        return found ? reasons : nil
     }
 }
