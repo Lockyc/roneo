@@ -14,10 +14,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
         DispatchQueue.global(qos: .utility).async { Scratch.app.clear(olderThan: 60) }
     }
 
-    /// A launch or Dock click that opens nothing shows no window and no Open panel.
-    func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool { false }
+    /// A launch or Dock click that opens nothing shows a blank window, never the Open panel.
+    func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool { true }
 
-    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool { false }
+    func applicationOpenUntitledFile(_ sender: NSApplication) -> Bool {
+        PDFFileDocument.openBlank()
+        return true
+    }
 
     // MARK: Default viewer
 

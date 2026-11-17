@@ -20,6 +20,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     private let findStrip = NSStackView()
     private let findField = NSSearchField()
     private let findCount = NSTextField(labelWithString: "")
+    private let emptyLabel = NSTextField(labelWithString: PrintController.noPDF)
     private var matches: [PDFSelection] = []
     private var matchIndex = -1
     /// Advances on every search begun or cancelled.
@@ -81,6 +82,16 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         preferred.isActive = true
 
         buildFindStrip()
+
+        emptyLabel.font = .systemFont(ofSize: NSFont.systemFontSize + 4)
+        emptyLabel.textColor = .secondaryLabelColor
+        emptyLabel.translatesAutoresizingMaskIntoConstraints = false
+        emptyLabel.isHidden = true
+        pdfView.addSubview(emptyLabel)
+        NSLayoutConstraint.activate([
+            emptyLabel.centerXAnchor.constraint(equalTo: pdfView.centerXAnchor),
+            emptyLabel.centerYAnchor.constraint(equalTo: pdfView.centerYAnchor),
+        ])
 
         barContainer.translatesAutoresizingMaskIntoConstraints = false
         barHeight.isActive = true
@@ -157,6 +168,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     /// Shows `pdf` at the page, scroll point and zoom of `state`, or fitted to width at its first
     /// page when `state` is nil.
     func display(_ pdf: PDFDocument, restoring state: ViewState? = nil) {
+        emptyLabel.isHidden = true
         cancelSearch(on: pdfView.document)
         clearMatches()
         pdfView.document = pdf
@@ -176,6 +188,15 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         } else {
             pdfView.go(to: page)
         }
+    }
+
+    override func windowTitle(forDocumentDisplayName displayName: String) -> String {
+        (document as? PDFFileDocument)?.isBlank == true ? "roneo" : displayName
+    }
+
+    /// The page area of a window with no PDF.
+    func showEmpty() {
+        emptyLabel.isHidden = false
     }
 
     @objc private func viewStateChanged(_ note: Notification) {

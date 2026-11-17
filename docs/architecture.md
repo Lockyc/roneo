@@ -32,8 +32,8 @@ An AppKit document-based app (`NSDocument`, read-only) hosts PDFKit's `PDFView`:
 vertical scroll, a page-thumbnail sidebar (⌥⌘2), zoom (actual size ⌘0, fit width, ⌘+ and ⌘−),
 Find (⌘F, ⌘G), page up and down, and go-to-page (⌥⌘G).
 
-- One window per document. Automatic window tabbing is off. A launch that opens and restores
-  nothing shows no window and never the Open panel.
+- One window per document. Automatic window tabbing is off. A launch or Dock click that opens
+  and restores nothing shows a blank window (`PDFFileDocument.openBlank`), never the Open panel.
 - Window restoration reopens what was open at quit at the same page and zoom (viewing state, not
   print state); Open Recent reopens a file at its first page.
 - PDF is declared as a Default-rank document type. "Make roneo the default PDF viewer" calls

@@ -62,8 +62,27 @@ import RoneoCore
         windowControllers.first as? DocumentWindowController
     }
 
+    /// A document with no file: the window a launch or Dock click shows when it opens nothing.
+    var isBlank: Bool { fileURL == nil }
+
+    /// Shows a blank window: the document layout with no PDF and Print disabled. It is never
+    /// restored, and opening a PDF closes it.
+    static func openBlank() {
+        let blank = PDFFileDocument()
+        NSDocumentController.shared.addDocument(blank)
+        blank.makeWindowControllers()
+        blank.controller?.window?.isRestorable = false
+        blank.controller?.showEmpty()
+        blank.showWindows()
+    }
+
     override func showWindows() {
         super.showWindows()
+        if !isBlank {
+            for case let blank as PDFFileDocument in NSDocumentController.shared.documents where blank.isBlank {
+                blank.close()
+            }
+        }
         present(restoring: restoredView)
     }
 

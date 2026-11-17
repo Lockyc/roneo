@@ -40,6 +40,7 @@ final class PrintController: NSObject, NSTextFieldDelegate {
     private static let unreachable = "Can't reach the print system"
     /// Shown before any settings exist for `Preflight` to judge; the same words it uses.
     private static let noPrinters = "No printers set up"
+    static let noPDF = "No PDF open"
     private static let pollInterval: TimeInterval = 1
     private static let pollLimit: TimeInterval = 120
 
@@ -245,8 +246,9 @@ final class PrintController: NSObject, NSTextFieldDelegate {
 
     /// Why Print is unavailable now, or nil when ⌘P and Print send the job.
     private var blockReason: String? {
+        guard let url = document?.fileURL else { return Self.noPDF }
         if let controlsBlocked { return controlsBlocked }
-        guard let printers, let settings, let pdf, let url = document?.fileURL else { return Self.loadingReason }
+        guard let printers, let settings, let pdf else { return Self.loadingReason }
         if pdf.isLocked { return "Unlock the PDF to print" }
         if sending { return "Sending…" }
         return Preflight.blockReason(settings: settings, printers: printers, pageCount: pdf.pageCount,
