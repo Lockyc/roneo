@@ -70,5 +70,6 @@ write("label-sheet.pdf", box: a4, count: 1) { _, ctx in
     let square = CGRect(x: a4.midX - 25 * mm, y: a4.midY - 25 * mm, width: 50 * mm, height: 50 * mm)
     ctx.setLineWidth(1)
     ctx.stroke(square)
-    draw("50 mm", size: 12, centredIn: square, y: square.midY - 4, in: ctx)
+    // Just inside the square's top edge: its centre is label 11's cell.
+    draw("50 mm", size: 12, centredIn: square, y: square.maxY - 4 * mm, in: ctx)
 }
