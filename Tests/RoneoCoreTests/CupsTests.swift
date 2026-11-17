@@ -70,4 +70,14 @@ final class CupsTests: XCTestCase {
         let cups = Cups(runner: FakeRunner(outputs: ["lpoptions -p P -l": brotherFixture]))
         XCTAssertEqual(try cups.capabilities(for: "P").options.count, 7)
     }
+
+    func testPrinterDescription() {
+        let cups = Cups(runner: FakeRunner(outputs: [
+            "lpstat -l -p Brother_X": "printer Brother_X is idle.\n\tContent types: any\n\tDescription: Brother X series\n\tAlerts: none\n",
+            "lpstat -l -p Blank": "printer Blank is idle.\n\tDescription: \n\tLocation: \n",
+        ]))
+        XCTAssertEqual(cups.description(of: "Brother_X"), "Brother X series")
+        XCTAssertEqual(cups.description(of: "Blank"), "Blank")
+        XCTAssertEqual(cups.description(of: "Missing"), "Missing")
+    }
 }

@@ -83,6 +83,19 @@ public struct Cups {
         return (names, defaultName)
     }
 
+    /// The printer's description, the name the system shows for it (the `Description:` line of
+    /// `lpstat -l -p`); `printer` itself when that is empty or `lpstat` fails, since the name is
+    /// only for display.
+    public func description(of printer: String) -> String {
+        guard let r = try? run("lpstat", ["-l", "-p", printer]), r.status == 0 else { return printer }
+        let prefix = "Description:"
+        let text = r.stdout.split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .first { $0.hasPrefix(prefix) }
+            .map { $0.dropFirst(prefix.count).trimmingCharacters(in: .whitespaces) } ?? ""
+        return text.isEmpty ? printer : text
+    }
+
     public func capabilities(for printer: String) throws -> PrinterCapabilities {
         let r = try run("lpoptions", ["-p", printer, "-l"])
         guard r.status == 0 else { throw CupsError(command: "lpoptions -p \(printer) -l", stderr: r.stderr) }

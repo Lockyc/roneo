@@ -21,9 +21,10 @@ public struct ColourChoices: Equatable, Sendable {
     public let colour: String
     public let grey: String
 
-    /// True for a `ColorModel` choice containing "Gray" or "Grey", in any case.
+    /// True for a greyscale `ColorModel` choice: one containing "Gray", "Grey", "Black" or "Mono"
+    /// in any case (`Gray`, `KGray`, `Black`, `Monochrome`).
     public static func isGrey(_ choice: String) -> Bool {
-        choice.localizedCaseInsensitiveContains("gray") || choice.localizedCaseInsensitiveContains("grey")
+        ["gray", "grey", "black", "mono"].contains { choice.localizedCaseInsensitiveContains($0) }
     }
 }
 
@@ -41,18 +42,20 @@ extension PrinterCapabilities {
 }
 
 extension PageSelection {
-    /// Pages in one copy of the job: every page, one, or those the range names (repeats counted);
-    /// nil when the range doesn't normalise.
+    /// Distinct pages in one copy of the job: every page, one, or those the range names; nil when
+    /// the range doesn't normalise.
     public func pageCount(of documentPages: Int) -> Int? {
         switch self {
         case .all: return documentPages
         case .current: return 1
         case .range(let text):
             guard let normal = PageRange.normalize(text, pageCount: documentPages) else { return nil }
-            return normal.split(separator: ",").reduce(0) { total, part in
+            var pages = Set<Int>()
+            for part in normal.split(separator: ",") {
                 let bounds = part.split(separator: "-").compactMap { Int($0) }
-                return total + (bounds.count == 2 ? bounds[1] - bounds[0] + 1 : 1)
+                pages.formUnion(bounds[0]...(bounds.last ?? bounds[0]))
             }
+            return pages.count
         }
     }
 }
