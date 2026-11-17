@@ -17,10 +17,22 @@ public protocol CommandRunner: Sendable {
     func run(_ executable: String, _ args: [String], environment: [String: String]?) throws -> CommandResult
 }
 
+/// A command that didn't exit within the runner's timeout; it was terminated.
+public struct CommandTimedOut: Error, Equatable {
+    public let command: String
+    public let seconds: TimeInterval
+}
+
 /// The real runner: resolves `executable` on PATH via `/usr/bin/env`, captures both streams.
-/// `environment` replaces the inherited one only when non-nil.
+/// `environment` replaces the inherited one only when non-nil. A command still running after
+/// `timeout` seconds is terminated and `CommandTimedOut` thrown, so a hung scheduler can't hold a
+/// window's bar on "Loading printers…" or "Sending…" for ever.
 public struct ProcessRunner: CommandRunner {
-    public init() {}
+    public let timeout: TimeInterval
+
+    public init(timeout: TimeInterval = 15) {
+        self.timeout = timeout
+    }
 
     public func run(_ executable: String, _ args: [String], environment: [String: String]?) throws -> CommandResult {
         let process = Process()
@@ -30,18 +42,24 @@ public struct ProcessRunner: CommandRunner {
         let out = Pipe(), err = Pipe()
         process.standardOutput = out
         process.standardError = err
+        let exited = DispatchSemaphore(value: 0)
+        process.terminationHandler = { _ in exited.signal() }
         try process.run()
-        // Drain both pipes before waiting so a full pipe buffer cannot deadlock the child.
-        nonisolated(unsafe) var errData = Data()
-        let group = DispatchGroup()
-        group.enter()
-        DispatchQueue.global().async {
-            errData = err.fileHandleForReading.readDataToEndOfFile()
-            group.leave()
+        // Drain both pipes while waiting so a full pipe buffer cannot deadlock the child.
+        nonisolated(unsafe) var outData = Data(), errData = Data()
+        let drained = DispatchGroup()
+        for (pipe, keep) in [(out, { (d: Data) in outData = d }), (err, { (d: Data) in errData = d })] {
+            drained.enter()
+            DispatchQueue.global().async {
+                keep(pipe.fileHandleForReading.readDataToEndOfFile())
+                drained.leave()
+            }
         }
-        let outData = out.fileHandleForReading.readDataToEndOfFile()
-        group.wait()
-        process.waitUntilExit()
+        let deadline = DispatchTime.now() + timeout
+        guard exited.wait(timeout: deadline) == .success, drained.wait(timeout: deadline) == .success else {
+            process.terminate()
+            throw CommandTimedOut(command: executable, seconds: timeout)
+        }
         return CommandResult(status: process.terminationStatus,
                              stdout: String(decoding: outData, as: UTF8.self),
                              stderr: String(decoding: errData, as: UTF8.self))

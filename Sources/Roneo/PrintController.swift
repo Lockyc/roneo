@@ -320,6 +320,9 @@ final class PrintController: NSObject, NSTextFieldDelegate {
                 case .success(let id):
                     self.show(sent, generation: generation)
                     self.poll(id: id, printer: settings.printer, generation: generation)
+                case .failure(let error as CommandTimedOut):
+                    // lp may have queued the job before it stopped answering.
+                    self.show("No answer from \(error.command); check the printer's queue before printing again")
                 case .failure(let error):
                     self.show("Didn't print: \(Self.describe(error))")
                 }
