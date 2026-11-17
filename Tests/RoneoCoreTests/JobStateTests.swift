@@ -46,12 +46,23 @@ final class JobStateTests: XCTestCase {
             status: "printer P disabled since Tue - Paper jam\n",
         ]))
         XCTAssertEqual(try cups.jobState(id: "P-42", printer: "P"),
-                       .failed("printer P disabled since Tue - Paper jam"))
+                       .notFound(printer: "printer P disabled since Tue - Paper jam"))
     }
 
-    func testFailedWithEmptyStatusLine() throws {
+    func testNotFoundWithEmptyStatusLine() throws {
         let cups = Cups(runner: RecordingRunner(outputs: [active: "", completed: "", status: ""]))
-        XCTAssertEqual(try cups.jobState(id: "P-42", printer: "P"), .failed("The job didn't complete"))
+        XCTAssertEqual(try cups.jobState(id: "P-42", printer: "P"), .notFound(printer: nil))
+    }
+
+    func testStatusText() {
+        XCTAssertEqual(JobState.notFound(printer: "printer P is idle.").text,
+                       "Couldn't find the job (printer P is idle.)")
+        XCTAssertEqual(JobState.notFound(printer: nil).text, "Couldn't find the job")
+        XCTAssertEqual(JobState.failed("aborted by system").text, "Didn't print: aborted by system")
+        XCTAssertEqual(JobState.sent(pages: 1).text, "Sent · 1 page")
+        XCTAssertEqual(JobState.sent(pages: 3).text, "Sent · 3 pages")
+        XCTAssertEqual(JobState.printing.text, "Printing")
+        XCTAssertEqual(JobState.done.text, "Done")
     }
 
     func testLpstatFailureThrows() {

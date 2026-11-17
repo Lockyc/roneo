@@ -345,23 +345,14 @@ final class PrintController: NSObject, NSTextFieldDelegate {
                     guard let self, self.jobGeneration == generation else { stop = true; return }
                     if let state { self.show(state, generation: generation) } else { self.show(Self.unreachable) }
                 }
-                if stop { return }
-                switch state {
-                case .done, .failed: return
-                default: continue
-                }
+                if stop || state?.isFinal == true { return }
             }
         }
     }
 
     private func show(_ state: JobState, generation: Int) {
         guard generation == jobGeneration else { return }
-        switch state {
-        case .sent(let pages): show("Sent · \(pages) page\(pages == 1 ? "" : "s")")
-        case .printing: show("Printing")
-        case .done: show("Done")
-        case .failed(let text): show("Didn't print: \(text)")
-        }
+        show(state.text)
     }
 
     private func show(_ text: String) {
