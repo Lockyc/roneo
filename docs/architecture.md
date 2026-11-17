@@ -30,13 +30,13 @@ vertical scroll, a page-thumbnail sidebar (⌥⌘2), zoom (actual size ⌘0, fit
 Find (⌘F, ⌘G), page up and down, and go-to-page (⌥⌘G).
 
 - One window per document. Automatic window tabbing is off.
-- Open Recent and window restoration reopen what was open at quit at the same page and zoom.
-  That is viewing state, not print state.
+- Window restoration reopens what was open at quit at the same page and zoom (viewing state, not
+  print state); Open Recent reopens a file at its first page.
 - PDF is declared as a Default-rank document type. "Make roneo the default PDF viewer" calls
-  `NSWorkspace.setDefaultApplication(at:toOpenContentType:)`; once roneo is the default the item
+  `NSWorkspace.setDefaultApplication(at:toOpen:)`; once roneo is the default the item
   is disabled with "roneo is the default PDF viewer".
-- The view reloads when the file changes on disk, so a regenerated sheet reprints without
-  reopening.
+- The view reloads when the file changes on disk, keeping page and zoom, so a regenerated sheet
+  reprints without reopening. A deleted file stays on screen as last read.
 
 ## Print bar
 

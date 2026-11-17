@@ -42,6 +42,8 @@ print path.
 
 - `just test`, `just gate`; `just run` builds and launches `build/roneo.app`.
 - Verify UI changes by running the app (`just run`) and confirming the window renders as intended.
+  `just fixtures` writes the test PDFs to `build/fixtures/`. `RONEO_PERF=1` makes the app print
+  `first-draw-ms <n>` (see `FirstDrawTimer`) and quit.
 - Branches: `main` + `dev`. Work lands on `dev`; a release fast-forwards `main` from `dev`
   (`git merge --ff-only dev`). Docs-only changes may land on `main` and are forward-merged into
   `dev` immediately.
