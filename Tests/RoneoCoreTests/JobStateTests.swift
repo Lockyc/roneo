@@ -61,6 +61,7 @@ final class JobStateTests: XCTestCase {
         XCTAssertEqual(JobState.failed("aborted by system").text, "Didn't print: aborted by system")
         XCTAssertEqual(JobState.sent(pages: 1).text, "Sent · 1 page")
         XCTAssertEqual(JobState.sent(pages: 3).text, "Sent · 3 pages")
+        XCTAssertEqual(JobState.sentPage(4).text, "Sent · page 4")
         XCTAssertEqual(JobState.printing.text, "Printing")
         XCTAssertEqual(JobState.done.text, "Done")
     }

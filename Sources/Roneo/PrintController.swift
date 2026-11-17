@@ -89,6 +89,7 @@ final class PrintController: NSObject, NSTextFieldDelegate {
 
         let center = NotificationCenter.default
         center.addObserver(self, selector: #selector(refresh), name: .PDFViewDocumentChanged, object: window.pdfView)
+        center.addObserver(self, selector: #selector(refresh), name: .PDFViewPageChanged, object: window.pdfView)
         if let w = window.window {
             center.addObserver(self, selector: #selector(refresh), name: NSWindow.didBecomeKeyNotification, object: w)
         }
@@ -291,8 +292,9 @@ final class PrintController: NSObject, NSTextFieldDelegate {
         guard blockReason == nil, let settings, let pdf, let original = document?.fileURL,
               let windowController else { return }
         let pageCount = pdf.pageCount
-        let pages = settings.pages.pageCount(of: pageCount) ?? 0
         let currentPage = windowController.currentPageIndex + 1
+        let sent: JobState = settings.pages == .current
+            ? .sentPage(currentPage) : .sent(pages: settings.pages.pageCount(of: pageCount) ?? 0)
         let landscape = PDFFacts.firstPageIsLandscape(pdf)
         let password = document?.password
         jobGeneration += 1
@@ -320,7 +322,7 @@ final class PrintController: NSObject, NSTextFieldDelegate {
                 self.sending = false
                 switch result {
                 case .success(let id):
-                    self.show(.sent(pages: pages), generation: generation)
+                    self.show(sent, generation: generation)
                     self.poll(id: id, printer: settings.printer, generation: generation)
                 case .failure(let error):
                     self.show("Didn't print: \(Self.describe(error))")
@@ -373,6 +375,9 @@ final class PrintController: NSObject, NSTextFieldDelegate {
     private func render() {
         let caps = selectedCapabilities
         let blocked = controlsBlocked
+
+        let current = "Current (\((windowController?.currentPageIndex ?? 0) + 1))"
+        if bar.pages.label(forSegment: 1) != current { bar.pages.setLabel(current, forSegment: 1) }
 
         renderPrinterPopup(blocked: blocked)
         if let blocked {

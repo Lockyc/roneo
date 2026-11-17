@@ -3,6 +3,8 @@ import Foundation
 public enum JobState: Equatable, Sendable {
     /// Submitted; the app builds this right after `PrintSubmitter.submit`, never `jobState`.
     case sent(pages: Int)
+    /// Submitted as one named page (Pages: Current); 1-based.
+    case sentPage(Int)
     case printing
     case done
     case failed(String)
@@ -14,6 +16,7 @@ public enum JobState: Equatable, Sendable {
     public var text: String {
         switch self {
         case .sent(let pages): return "Sent · \(pages) page\(pages == 1 ? "" : "s")"
+        case .sentPage(let page): return "Sent · page \(page)"
         case .printing: return "Printing"
         case .done: return "Done"
         case .failed(let reasons): return "Didn't print: \(reasons)"
@@ -25,7 +28,7 @@ public enum JobState: Equatable, Sendable {
     public var isFinal: Bool {
         switch self {
         case .done, .failed, .notFound: return true
-        case .sent, .printing: return false
+        case .sent, .sentPage, .printing: return false
         }
     }
 }
