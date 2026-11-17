@@ -3,7 +3,7 @@ import PDFKit
 
 /// A PDF open for viewing. Read-only: never edited, saved or autosaved. The whole file is read into
 /// memory, so the window keeps showing it if the file is replaced mid-write or deleted.
-@objc(PDFFileDocument) final class PDFFileDocument: NSDocument, PDFDocumentDelegate {
+@objc(PDFFileDocument) final class PDFFileDocument: NSDocument {
     private(set) var pdf: PDFDocument?
     /// The password that unlocked this file, reused when a change on disk reloads it.
     private var password: String?
@@ -22,12 +22,9 @@ import PDFKit
         guard let pdf = PDFDocument(data: data) else {
             throw CocoaError(.fileReadCorruptFile)
         }
-        if FirstDrawTimer.isEnabled { pdf.delegate = self }
         if pdf.isLocked, let password { pdf.unlock(withPassword: password) }
         self.pdf = pdf
     }
-
-    func classForPage() -> AnyClass { TimedPage.self }
 
     override func makeWindowControllers() {
         addWindowController(DocumentWindowController())

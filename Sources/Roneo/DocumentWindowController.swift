@@ -5,10 +5,11 @@ import PDFKit
 /// the print bar's container, the find strip (shown by ⌘F) and the `PDFView`.
 final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMenuItemValidation,
     NSSearchFieldDelegate, PDFDocumentDelegate {
-    let pdfView = PDFView()
+    let pdfView: PDFView = PageView()
     /// Holds the print bar, above the page. Empty and zero-height until the bar is installed.
     let barContainer = NSView()
 
+    private static let sidebarWidth: CGFloat = 140
     private let thumbnails = PDFThumbnailView()
     private let split = NSSplitView()
     private let findStrip = NSStackView()
@@ -42,7 +43,11 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         window.tabbingMode = .disallowed
         window.animationBehavior = .none
         window.minSize = NSSize(width: 480, height: 360)
-        window.center()
+        if let last = NSApp.mainWindow {
+            window.setFrameTopLeftPoint(window.cascadeTopLeft(from: NSPoint(x: last.frame.minX, y: last.frame.maxY)))
+        } else {
+            window.center()
+        }
         super.init(window: window)
         window.delegate = self
         buildViews(in: window)
@@ -59,6 +64,10 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         thumbnails.pdfView = pdfView
         thumbnails.thumbnailSize = NSSize(width: 96, height: 128)
         thumbnails.backgroundColor = .windowBackgroundColor
+        thumbnails.widthAnchor.constraint(greaterThanOrEqualToConstant: 100).isActive = true
+        let preferred = thumbnails.widthAnchor.constraint(equalToConstant: Self.sidebarWidth)
+        preferred.priority = .init(260)
+        preferred.isActive = true
 
         buildFindStrip()
 
@@ -74,12 +83,13 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
 
         split.isVertical = true
         split.dividerStyle = .thin
+        split.frame = window.contentLayoutRect
         split.addArrangedSubview(thumbnails)
         split.addArrangedSubview(column)
         split.setHoldingPriority(.defaultHigh, forSubviewAt: 0)
         window.contentView = split
-        thumbnails.frame.size.width = 140
-        split.setPosition(140, ofDividerAt: 0)
+        window.layoutIfNeeded()
+        split.setPosition(Self.sidebarWidth, ofDividerAt: 0)
 
         NotificationCenter.default.addObserver(self, selector: #selector(viewStateChanged(_:)),
                                                name: .PDFViewPageChanged, object: pdfView)
@@ -166,7 +176,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     @objc func toggleThumbnails(_ sender: Any?) {
         thumbnails.isHidden.toggle()
         split.adjustSubviews()
-        if !thumbnails.isHidden { split.setPosition(140, ofDividerAt: 0) }
+        if !thumbnails.isHidden { split.setPosition(Self.sidebarWidth, ofDividerAt: 0) }
     }
 
     @objc func actualSize(_ sender: Any?) {

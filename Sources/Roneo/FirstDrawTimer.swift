@@ -1,14 +1,14 @@
-import Foundation
+import AppKit
 import PDFKit
 
 /// With `RONEO_PERF=1` in the environment, prints `first-draw-ms <n>` to stdout — the time from
 /// the kernel's process start time (`kinfo_proc.p_starttime`, so dyld and launch are included) to
-/// the first PDF page drawn into a view — and terminates the app.
+/// the first page a `PageView` draws — and terminates the app.
 enum FirstDrawTimer {
     static let isEnabled = ProcessInfo.processInfo.environment["RONEO_PERF"] == "1"
     @MainActor private static var reported = false
 
-    /// Called from every page draw; reports once, from the main thread.
+    /// Called from every page draw, on PDFKit's tile-rendering threads; reports once.
     static func pageDidDraw() {
         guard isEnabled else { return }
         let now = Date()
@@ -32,10 +32,10 @@ enum FirstDrawTimer {
     }
 }
 
-/// Every page of a viewed document: reports its first draw to `FirstDrawTimer`.
-final class TimedPage: PDFPage {
-    override func draw(with box: PDFDisplayBox, to context: CGContext) {
-        super.draw(with: box, to: context)
+/// The document window's `PDFView`: reports each page it draws to `FirstDrawTimer`.
+final class PageView: PDFView {
+    override func draw(_ page: PDFPage, to context: CGContext) {
+        super.draw(page, to: context)
         FirstDrawTimer.pageDidDraw()
     }
 }
