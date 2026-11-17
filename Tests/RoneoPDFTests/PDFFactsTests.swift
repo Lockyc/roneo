@@ -27,6 +27,23 @@ final class PDFFactsTests: XCTestCase {
         return url
     }
 
+    private func makeCropped(_ name: String, rotation: Int = 0, encrypted: Bool = false) throws -> URL {
+        let plain = dir.appendingPathComponent("plain-\(name)")
+        var box = CGRect(x: 0, y: 0, width: 595, height: 842)
+        let ctx = try XCTUnwrap(CGContext(plain as CFURL, mediaBox: &box, nil))
+        var crop = CGRect(x: 10, y: 20, width: 500, height: 300)
+        ctx.beginPDFPage([kCGPDFContextCropBox: Data(bytes: &crop, count: MemoryLayout<CGRect>.size)] as CFDictionary)
+        ctx.endPDFPage()
+        ctx.closePDF()
+        let doc = try XCTUnwrap(PDFDocument(url: plain))
+        try XCTUnwrap(doc.page(at: 0)).rotation = rotation
+        let out = dir.appendingPathComponent(name)
+        let opts: [PDFDocumentWriteOption: Any] = encrypted
+            ? [.userPasswordOption: "u", .ownerPasswordOption: "o"] : [:]
+        XCTAssertTrue(doc.write(to: out, withOptions: opts))
+        return out
+    }
+
     private func open(_ url: URL) throws -> PDFDocument {
         try XCTUnwrap(PDFDocument(url: url))
     }
@@ -51,6 +68,11 @@ final class PDFFactsTests: XCTestCase {
         XCTAssertTrue(PDFFacts.firstPageIsLandscape(try open(out)))
     }
 
+    func testCropBoxLandscapeInPortraitMedia() throws {
+        let doc = try open(makeCropped("c.pdf"))
+        XCTAssertTrue(PDFFacts.firstPageIsLandscape(doc))
+    }
+
     func testPlainFileIsOriginal() throws {
         let url = try makePDF("plain.pdf")
         let doc = try open(url)
@@ -60,9 +82,7 @@ final class PDFFactsTests: XCTestCase {
     }
 
     func testEncryptedUnlockedCopyIsUnencrypted() throws {
-        let url = try makePDF("enc.pdf", aux: [
-            kCGPDFContextUserPassword: "u", kCGPDFContextOwnerPassword: "o",
-        ])
+        let url = try makeCropped("enc.pdf", rotation: 90, encrypted: true)
         let doc = try open(url)
         XCTAssertTrue(doc.isEncrypted)
         XCTAssertTrue(doc.unlock(withPassword: "u"))
@@ -76,6 +96,9 @@ final class PDFFactsTests: XCTestCase {
         XCTAssertEqual(copy.pageCount, doc.pageCount)
         XCTAssertEqual(
             copy.page(at: 0)?.bounds(for: .mediaBox), doc.page(at: 0)?.bounds(for: .mediaBox))
+        XCTAssertEqual(
+            copy.page(at: 0)?.bounds(for: .cropBox), CGRect(x: 10, y: 20, width: 500, height: 300))
+        XCTAssertEqual(copy.page(at: 0)?.rotation, 90)
     }
 
     func testNoPrintPermission() throws {

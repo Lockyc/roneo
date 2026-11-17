@@ -3,10 +3,11 @@ import PDFKit
 
 /// Facts about a loaded PDF that the print bar needs.
 public enum PDFFacts {
-    /// True when page 1, as displayed (media box with `/Rotate` applied), is wider than tall.
+    /// True when page 1, as displayed, is wider than tall: the crop box (which CUPS sizes the page
+    /// from) with `/Rotate` applied.
     public static func firstPageIsLandscape(_ doc: PDFDocument) -> Bool {
         guard let page = doc.page(at: 0) else { return false }
-        let box = page.bounds(for: .mediaBox)
+        let box = page.bounds(for: .cropBox)
         let quarterTurn = page.rotation % 180 != 0
         let width = quarterTurn ? box.height : box.width
         let height = quarterTurn ? box.width : box.height
