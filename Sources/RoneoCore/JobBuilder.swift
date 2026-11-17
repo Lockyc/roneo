@@ -2,8 +2,9 @@ import Foundation
 
 public enum JobBuilder {
     /// Arguments for `/usr/bin/lp`. Assumes `Preflight` passed; an unnormalisable range is passed
-    /// through raw so CUPS rejects the job rather than printing every page.
-    public static func lpArguments(settings: PrintSettings, file: URL, currentPage: Int,
+    /// through raw so CUPS rejects the job rather than printing every page. `title` names the job in
+    /// the queue, since `file` is a scratch copy.
+    public static func lpArguments(settings: PrintSettings, file: URL, title: String, currentPage: Int,
                                    pageCount: Int, firstPageLandscape: Bool) -> [String] {
         let sides: String
         switch settings.sides {
@@ -25,7 +26,7 @@ public enum JobBuilder {
                              ("InputSlot", settings.tray), ("ColorModel", settings.colour)] {
             if let value { a += ["-o", "\(key)=\(value)"] }
         }
-        return a + ["--", file.path]
+        return a + ["-t", title, "--", file.path]
     }
 }
 
@@ -35,9 +36,17 @@ public struct PrintSubmitter {
     private let runner: CommandRunner
     private let emptyHome: URL
 
+    /// How long `lp` gets: handing a large PDF to cupsd can outlast a query's timeout.
+    public static let timeout: TimeInterval = 120
+
     public init(runner: CommandRunner, emptyHome: URL) {
         self.runner = runner
         self.emptyHome = emptyHome
+    }
+
+    /// Runs the real `lp` with `timeout`.
+    public init(emptyHome: URL) {
+        self.init(runner: ProcessRunner(timeout: Self.timeout), emptyHome: emptyHome)
     }
 
     /// Returns the CUPS job id from `request id is <id> (1 file(s))`.

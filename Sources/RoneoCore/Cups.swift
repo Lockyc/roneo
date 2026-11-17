@@ -19,6 +19,7 @@ public protocol CommandRunner: Sendable {
 
 /// A command that didn't exit within the runner's timeout; it was terminated.
 public struct CommandTimedOut: Error, Equatable {
+    /// The command's name, without its path.
     public let command: String
     public let seconds: TimeInterval
 }
@@ -58,7 +59,7 @@ public struct ProcessRunner: CommandRunner {
         let deadline = DispatchTime.now() + timeout
         guard exited.wait(timeout: deadline) == .success, drained.wait(timeout: deadline) == .success else {
             process.terminate()
-            throw CommandTimedOut(command: executable, seconds: timeout)
+            throw CommandTimedOut(command: URL(fileURLWithPath: executable).lastPathComponent, seconds: timeout)
         }
         return CommandResult(status: process.terminationStatus,
                              stdout: String(decoding: outData, as: UTF8.self),

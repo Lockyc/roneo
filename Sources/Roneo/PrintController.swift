@@ -270,12 +270,13 @@ final class PrintController: NSObject, NSTextFieldDelegate {
             ? .sentPage(currentPage) : .sent(pages: settings.pages.pageCount(of: pageCount) ?? 0)
         let landscape = PDFFacts.firstPageIsLandscape(pdf)
         let password = document?.password
+        let title = document?.displayName ?? "roneo"
         jobGeneration += 1
         let generation = jobGeneration
         sending = true
         show("Sending…")
         render()
-        let submitter = PrintSubmitter(runner: ProcessRunner(), emptyHome: PrinterDirectory.emptyHome)
+        let submitter = PrintSubmitter(emptyHome: PrinterDirectory.emptyHome)
         queue.async { [weak self] in
             let result = Result { () throws -> String in
                 // The bytes the window parsed, so pages, landscape and preflight match what is
@@ -283,7 +284,7 @@ final class PrintController: NSObject, NSTextFieldDelegate {
                 let file = try PrintableFile.write(data, password: password, scratch: Scratch.app.directory)
                 defer { try? FileManager.default.removeItem(at: file) }
                 return try submitter.submit(JobBuilder.lpArguments(
-                    settings: settings, file: file, currentPage: currentPage,
+                    settings: settings, file: file, title: title, currentPage: currentPage,
                     pageCount: pageCount, firstPageLandscape: landscape))
             }
             DispatchQueue.main.async {

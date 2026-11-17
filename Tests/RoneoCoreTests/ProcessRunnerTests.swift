@@ -20,4 +20,16 @@ final class ProcessRunnerTests: XCTestCase {
     func testDefaultTimeoutIsFifteenSeconds() {
         XCTAssertEqual(ProcessRunner().timeout, 15)
     }
+
+    /// The bar names the command, not its path.
+    func testTimeoutNamesTheCommandWithoutItsPath() {
+        XCTAssertThrowsError(try ProcessRunner(timeout: 0.2).run("/bin/sleep", ["30"], environment: nil)) {
+            XCTAssertEqual(($0 as? CommandTimedOut)?.command, "sleep")
+        }
+    }
+
+    /// Handing a large PDF to cupsd can take longer than a query.
+    func testSubmitterRunnerAllowsTwoMinutes() {
+        XCTAssertEqual(PrintSubmitter.timeout, 120)
+    }
 }

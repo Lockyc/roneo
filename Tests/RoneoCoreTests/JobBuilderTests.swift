@@ -11,7 +11,16 @@ final class JobBuilderTests: XCTestCase {
     }
 
     private func args(_ s: PrintSettings, landscape: Bool = false, file: URL? = nil) -> [String] {
-        JobBuilder.lpArguments(settings: s, file: file ?? self.file, currentPage: 4, pageCount: 10, firstPageLandscape: landscape)
+        JobBuilder.lpArguments(settings: s, file: file ?? self.file, title: "Label sheet.pdf", currentPage: 4,
+                               pageCount: 10, firstPageLandscape: landscape)
+    }
+
+    /// The queue shows the document's name, not the scratch file's UUID.
+    func testTitleIsTheDocumentName() throws {
+        let a = args(base(), file: URL(fileURLWithPath: "/tmp/roneo/0A1B.pdf"))
+        let t = try XCTUnwrap(a.firstIndex(of: "-t"))
+        XCTAssertEqual(a[t + 1], "Label sheet.pdf")
+        XCTAssertLessThan(t, try XCTUnwrap(a.firstIndex(of: "--")))
     }
 
     func testSingle100Percent() {
@@ -20,7 +29,7 @@ final class JobBuilderTests: XCTestCase {
             "-o", "sides=one-sided", "-o", "print-scaling=none", "-o", "number-up=1",
             "-o", "page-set=all", "-o", "mirror=false", "-o", "fit-to-page=false",
             "-o", "PageSize=A4", "-o", "MediaType=any", "-o", "InputSlot=auto", "-o", "ColorModel=RGB",
-            "--", "/tmp/doc.pdf",
+            "-t", "Label sheet.pdf", "--", "/tmp/doc.pdf",
         ])
     }
 
