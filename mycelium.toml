@@ -1,0 +1,9 @@
+name    = "roneo"
+summary = "Native macOS PDF viewer with an in-window print bar: single or double sided at true 100% scale in one click"
+kind    = "app"
+status  = "active"
+tags    = ["macos", "pdf", "printing", "viewer"]
+stack   = ["swift"]
+
+[github]
+topics_extra = ["appkit", "swift", "pdf", "pdfkit", "printing"]
