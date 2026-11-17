@@ -92,19 +92,34 @@ launch path:
     for _ in {1..20}; do open "{{path}}" 2>/dev/null && exit 0; sleep 0.25; done
     open "{{path}}"
 
-# Median first-draw-ms of build/roneo.app over 5 hidden launches on FILE (never shows a window)
-perf file: bundle quit
+# Median first-draw-ms of build/roneo.app over 5 hidden launches on FILE (never shows a window; leaves any other Roneo running)
+perf file: bundle
     #!/usr/bin/env bash
     set -euo pipefail
+    app="{{justfile_directory()}}/{{app}}"
+    exe="$app/Contents/MacOS/Roneo"
     out=$(mktemp)
-    trap 'rm -f "$out"' EXIT
+    pid=""
+    # Only the instance this run launched is ever signalled.
+    trap 'rm -f "$out"; [ -z "$pid" ] || kill "$pid" 2>/dev/null || true' EXIT
     runs=()
     for _ in 1 2 3 4 5; do
         : > "$out"
-        open -g -j -n --env RONEO_PERF=1 --stdout "$out" -a "{{justfile_directory()}}/{{app}}" "{{file}}"
+        before=$(pgrep -f -- "$exe" || true)
+        open -g -j -n --env RONEO_PERF=1 --stdout "$out" -a "$app" "{{file}}"
+        pid=""
+        for _ in {1..50}; do
+            pid=$(pgrep -f -- "$exe" | grep -v -x -F -e "${before:-none}" | head -n 1 || true)
+            [ -n "$pid" ] && break
+            sleep 0.1
+        done
+        [ -n "$pid" ] || { echo "perf: the launched instance never appeared" >&2; exit 1; }
         for _ in {1..100}; do grep -q first-draw-ms "$out" && break; sleep 0.1; done
+        grep -q first-draw-ms "$out" || { echo "perf: no first-draw-ms within 10 s" >&2; exit 1; }
         runs+=("$(awk '/first-draw-ms/{print $2}' "$out")")
-        while pgrep -x Roneo >/dev/null; do sleep 0.1; done
+        for _ in {1..50}; do kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done
+        kill "$pid" 2>/dev/null || true
+        pid=""
     done
     printf '%s\n' "${runs[@]}" | tr '\n' ' '; echo
     printf '%s\n' "${runs[@]}" | sort -n | awk '{a[NR]=$1} END{print "median first-draw-ms", a[int((NR+1)/2)]}'
