@@ -11,17 +11,19 @@ links:
 # Architecture
 
 roneo is a PDF viewer whose print controls sit in the window, so printing single- or
-double-sided at 100% scale is one click, not a trip through the system print dialog. It opens a
-PDF no slower than Preview does, and it prints the file itself, so 100% is exact.
+double-sided at 100% scale is one click, not a trip through the system print dialog. It prints
+the file itself, so 100% is exact.
 
 ## Targets
 
-- `RoneoCore` — Foundation only. Print-job decisions: option building, defaults, the
-  double-sided binding rule.
+- `RoneoCore` — Foundation only. Print-job decisions: settings and their defaults, preflight,
+  the `lp` arguments (double-sided binding included), page ranges, CUPS queries and job state,
+  and the bar's display choices (`BarChoices`).
 - `RoneoPDF` — Foundation and PDFKit. Document facts the print path needs: first-page
   orientation, page count, lock and permission state, the unlocked copy.
-- `Roneo` — the AppKit executable: document, window, viewer and print bar. It holds no decision
-  the unit tests should cover; those live in the two libraries.
+- `Roneo` — the AppKit executable: document, window, viewer and print bar. `PrintController`
+  drives one window's bar (printer loading, controls, Print, job polling); `PrintBarView` is
+  layout only. It holds no decision the unit tests should cover; those live in the two libraries.
 
 ## Viewer
 
@@ -44,7 +46,7 @@ A strip across the top of each document window, above the page, always visible:
 
 ```
 Printer [name ▾]  Sides [Single|Double]  Scale [100%|Fit]  Pages [All|Current|Range: ___]  Copies [1 ⌃⌄]
-Paper [ ▾]  Type [ ▾]  Tray [ ▾]  Colour [Colour|Grey]                              [ Print  ⌘P ]
+Paper [ ▾]  Type [ ▾]  Tray [ ▾]  Colour [Colour|Grey]                              [ Print ]
 ```
 
 Every control shows a setting the job will use; a job never carries a setting the bar did not
@@ -70,7 +72,7 @@ show. Defaults, identical for every new window:
   the new printer's defaults and keeps Sides, Scale, Pages and Copies where the new printer
   supports them. Nothing is persisted across windows, documents or launches.
 - Fit shrinks or grows each page to the printable area. Current is the page shown in the view.
-- ⌘P and Print send the job immediately with the bar's settings. "Print with System Dialog…"
+- ⌘P (File → Print) and the Print button send the job immediately with the bar's settings. "Print with System Dialog…"
   (⌥⌘P) in the File menu covers anything the bar does not.
 - After sending, the right end of the bar shows the job's state from CUPS ("Sent · 3 pages",
   "Printing", "Done", or the printer's error) until the next print.
