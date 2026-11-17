@@ -38,8 +38,8 @@ print path.
 - Unavailable controls are disabled in place with a tooltip saying why; they never move or
   disappear.
 - One window per PDF; no tabs.
-- Print sends the PDF file itself to `lp` with an empty `HOME`; the app never re-renders pages,
-  and every job carries explicit neutral layout options.
+- Print sends the bytes the window shows to `lp`; `lp` and `lpoptions` run with an empty `HOME`.
+  The app never re-renders pages, and every job carries explicit neutral layout options.
 
 ## Build, test, verify, branches
 

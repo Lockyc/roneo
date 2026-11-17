@@ -20,10 +20,10 @@ the file itself, so 100% is exact.
   the `lp` arguments (double-sided binding included), page ranges, CUPS queries and job state,
   and the bar's display choices (`BarChoices`).
 - `RoneoPDF` — Foundation and PDFKit. Document facts the print path needs: first-page
-  orientation, page count, lock and permission state, the unlocked copy.
-- `Roneo` — the AppKit executable: document, window, viewer and print bar. `PrintController`
-  drives one window's bar (printer loading, controls, Print, job polling); `PrintBarView` is
-  layout only. It holds no decision the unit tests should cover; those live in the two libraries.
+  orientation, print permission, and the file `lp` receives (`PrintableFile`).
+- `Roneo` — the AppKit executable: document, window, viewer and print bar. `PrinterDirectory`
+  reads the printer list for every window; `PrintController` drives one window's bar (controls,
+  Print, job polling); `PrintBarView` is layout only. It holds no decision the unit tests should cover; those live in the two libraries.
 
 ## Viewer
 
@@ -31,7 +31,8 @@ An AppKit document-based app (`NSDocument`, read-only) hosts PDFKit's `PDFView`:
 vertical scroll, a page-thumbnail sidebar (⌥⌘2), zoom (actual size ⌘0, fit width, ⌘+ and ⌘−),
 Find (⌘F, ⌘G), page up and down, and go-to-page (⌥⌘G).
 
-- One window per document. Automatic window tabbing is off.
+- One window per document. Automatic window tabbing is off. A launch that opens and restores
+  nothing shows the Open panel.
 - Window restoration reopens what was open at quit at the same page and zoom (viewing state, not
   print state); Open Recent reopens a file at its first page.
 - PDF is declared as a Default-rank document type. "Make roneo the default PDF viewer" calls
@@ -71,19 +72,23 @@ show. Defaults, identical for every new window:
   new window starts from the defaults. Changing printer resets Paper, Type, Tray and Colour to
   the new printer's defaults and keeps Sides, Scale, Pages and Copies where the new printer
   supports them. Nothing is persisted across windows, documents or launches.
-- Fit shrinks or grows each page to the printable area. Current is the page shown in the view.
+- Fit shrinks or grows each page to the printable area. Current is the page shown in the view,
+  named in its segment ("Current (4)").
 - ⌘P (File → Print) and the Print button send the job immediately with the bar's settings. "Print with System Dialog…"
   (⌥⌘P) in the File menu covers anything the bar does not.
-- After sending, the right end of the bar shows the job's state from CUPS ("Sent · 3 pages",
-  "Printing", "Done", or the printer's error) until the next print.
+- After sending, the right end of the bar shows the job's state from CUPS (`JobState.text`:
+  "Sent · 3 pages", "Sent · page 4", "Printing", "Done", "Didn't print: …", "Couldn't find the
+  job (…)") until the next print.
 
 ## Print path
 
-The PDF file on disk goes straight to CUPS, equivalent to
-`lp -d <printer> -n <copies> -o sides=… -o print-scaling=none|fit -o page-ranges=… -o media=…
--o MediaType=… -o InputSlot=… -o ColorModel=…`. Pages are never re-rendered by the app, so 100% is
-byte-exact. The printer list and each printer's options come from CUPS (destinations and the
-printer's PPD or IPP attributes). The app is not sandboxed.
+The bytes the window shows go to CUPS (from a scratch copy, deleted once `lp` returns),
+equivalent to `lp -d <printer> -n <copies> -o sides=… -o print-scaling=none|fit
+-o page-ranges=… -o PageSize=… -o MediaType=… -o InputSlot=… -o ColorModel=…`. Pages are never
+re-rendered by the app, so 100% is byte-exact; page ranges go ascending and merged. The printer
+list and each printer's options come from CUPS (destinations and the printer's PPD or IPP
+attributes); every CUPS command is cut off after `ProcessRunner.timeout`. The app is not
+sandboxed.
 
 - Every job carries the bar's options plus explicit neutral values for each layout-changing
   option: `number-up=1`, no fit-to-page, all sides of `page-set`, no mirror.
@@ -93,7 +98,8 @@ printer's PPD or IPP attributes). The app is not sandboxed.
 
 ## Locked and no-print PDFs
 
-A password-protected PDF prompts for the password to view. Printing sends a temporary unlocked
-copy, which stays vector and exact at 100%, and deletes it once the job is queued. A PDF whose
+A password-protected PDF prompts for the password to view. Printing sends an unlocked copy,
+which stays vector and exact at 100%. A PDF encrypted only for permissions prints from its own
+bytes. A PDF whose
 permissions forbid printing keeps Print disabled with the tooltip "This PDF doesn't allow
 printing".
