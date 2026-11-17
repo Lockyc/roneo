@@ -343,7 +343,7 @@ final class PrintController: NSObject, NSTextFieldDelegate {
             }
         }
         if blocked == nil, let settings, let caps {
-            for control in bar.settingControls {
+            for control in bar.settingControls where control !== bar.printer {
                 control.isEnabled = true
                 control.toolTip = nil
             }
@@ -389,7 +389,7 @@ final class PrintController: NSObject, NSTextFieldDelegate {
         }
         if let settings { popup.selectItem(withTitle: settings.printer) }
         popup.isEnabled = !names.isEmpty && !loadingOptions && settings != nil
-        popup.toolTip = popup.isEnabled ? nil : blocked
+        popup.toolTip = popup.isEnabled ? settings?.printer : blocked
     }
 
     private func renderChoices(_ popup: NSPopUpButton, _ option: PrinterOption?, selected: String?, missing: String) {

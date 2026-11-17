@@ -30,14 +30,19 @@ final class PrintBarView: NSView {
             control.controlSize = .small
             control.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
         }
-        printer.widthAnchor.constraint(lessThanOrEqualToConstant: 200).isActive = true
+        // The popups give up width first, the printer name before the media choices.
+        (printer.cell as? NSPopUpButtonCell)?.lineBreakMode = .byTruncatingMiddle
+        printer.widthAnchor.constraint(lessThanOrEqualToConstant: 220).isActive = true
         printer.setContentCompressionResistancePriority(.init(200), for: .horizontal)
+        for popup in [printer, paper, mediaType, tray] {
+            popup.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        }
         for popup in [paper, mediaType, tray] {
             popup.widthAnchor.constraint(lessThanOrEqualToConstant: 160).isActive = true
             popup.setContentCompressionResistancePriority(.init(210), for: .horizontal)
         }
         range.placeholderString = "1-3, 5"
-        range.widthAnchor.constraint(equalToConstant: 64).isActive = true
+        range.widthAnchor.constraint(equalToConstant: 56).isActive = true
         copies.alignment = .right
         copies.widthAnchor.constraint(equalToConstant: 36).isActive = true
         copiesStepper.minValue = 1
@@ -90,7 +95,7 @@ final class PrintBarView: NSView {
     private func row(_ views: [NSView]) -> NSStackView {
         let stack = NSStackView(views: views)
         stack.orientation = .horizontal
-        stack.spacing = 14
+        stack.spacing = 10
         stack.alignment = .centerY
         stack.setClippingResistancePriority(.defaultLow, for: .horizontal)
         return stack
