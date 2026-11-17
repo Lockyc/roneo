@@ -41,5 +41,9 @@
 	<true/>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>SUFeedURL</key>
+	<string>https://github.com/lockyc/roneo/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>vE9NSw/ijPEMOTlQpGJeCVX0BRwTYtCHunFMRtWGzuA=</string>
 </dict>
 </plist>
