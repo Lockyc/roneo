@@ -14,20 +14,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
         DispatchQueue.global(qos: .utility).async { Scratch.app.clear(olderThan: 60) }
     }
 
-    /// AppKit asks only when launch opened and restored nothing; roneo has no untitled document,
-    /// so it offers the Open panel instead.
-    func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool { true }
+    /// A launch or Dock click that opens nothing shows no window and no Open panel.
+    func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool { false }
 
-    func applicationOpenUntitledFile(_ sender: NSApplication) -> Bool {
-        NSDocumentController.shared.openDocument(nil)
-        return true
-    }
-
-    /// Clicking the Dock icon with no window open offers the Open panel.
-    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
-        if !hasVisibleWindows { NSDocumentController.shared.openDocument(nil) }
-        return false
-    }
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool { false }
 
     // MARK: Default viewer
 
