@@ -6,8 +6,10 @@ import PDFKit
 final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMenuItemValidation,
     NSSearchFieldDelegate, PDFDocumentDelegate {
     let pdfView: PDFView = PageView()
-    /// Holds the print bar, above the page. Empty and zero-height until the bar is installed.
+    /// Holds the print bar, above the page. Empty until the bar is installed.
     let barContainer = NSView()
+    /// Fixes `barContainer` at zero height while it is empty; deactivate it when installing the bar.
+    let barHeight: NSLayoutConstraint
 
     private static let sidebarWidth: CGFloat = 140
     private let thumbnails = PDFThumbnailView()
@@ -20,6 +22,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     private var searching = false
     /// The text the current matches are for.
     private var searchedText = ""
+    /// The page in view when the current search began.
+    private var searchStartPage = 0
 
     /// The zero-based index of the page the view shows; setting it scrolls to that page.
     var currentPageIndex: Int {
@@ -48,6 +52,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         } else {
             window.center()
         }
+        barHeight = barContainer.heightAnchor.constraint(equalToConstant: 0)
         super.init(window: window)
         window.delegate = self
         buildViews(in: window)
@@ -72,7 +77,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         buildFindStrip()
 
         barContainer.translatesAutoresizingMaskIntoConstraints = false
-        barContainer.heightAnchor.constraint(equalToConstant: 0).isActive = true
+        barHeight.isActive = true
 
         let column = NSStackView(views: [barContainer, findStrip, pdfView])
         column.orientation = .vertical
@@ -123,39 +128,40 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
 
     // MARK: Showing a document
 
-    /// Shows `pdf`, at `page` and `scale` when given (from window restoration), else fitted to width
-    /// at its first page.
-    func display(_ pdf: PDFDocument, page: Int? = nil, scale: CGFloat? = nil) {
-        pdfView.document = pdf
-        if let scale, scale > 0 {
-            pdfView.autoScales = false
-            pdfView.scaleFactor = scale
-        } else {
-            pdfView.autoScales = true
-        }
-        if let page { currentPageIndex = page }
-    }
-
-    /// The view's position and zoom, carried across a reload.
+    /// The view's position and zoom, carried across a reload and through window restoration.
     struct ViewState {
+        /// The page `point` lies on.
         let page: Int
+        /// The top-left visible point, in `page`'s coordinates; nil scrolls to the page's top.
         let point: NSPoint?
+        /// Fitted to width; `scale` applies only when false.
         let autoScales: Bool
         let scale: CGFloat
     }
 
+    /// The view's position and zoom. Page and point both come from `currentDestination`, so they
+    /// name the same page.
     var viewState: ViewState {
-        ViewState(page: currentPageIndex, point: pdfView.currentDestination?.point,
-                  autoScales: pdfView.autoScales, scale: pdfView.scaleFactor)
+        let destination = pdfView.currentDestination
+        let page = destination?.page.flatMap { pdfView.document?.index(for: $0) }
+        return ViewState(page: page ?? currentPageIndex, point: page == nil ? nil : destination?.point,
+                         autoScales: pdfView.autoScales, scale: pdfView.scaleFactor)
     }
 
-    /// Shows the re-read `pdf` at the page, scroll point and zoom of `state`.
-    func display(_ pdf: PDFDocument, restoring state: ViewState) {
+    /// Shows `pdf` at the page, scroll point and zoom of `state`, or fitted to width at its first
+    /// page when `state` is nil.
+    func display(_ pdf: PDFDocument, restoring state: ViewState? = nil) {
+        if let old = pdfView.document, old !== pdf, old.isFinding { old.cancelFindString() }
+        searching = false
         clearMatches()
         pdfView.document = pdf
+        guard let state else {
+            pdfView.autoScales = true
+            return
+        }
         if state.autoScales {
             pdfView.autoScales = true
-        } else {
+        } else if state.scale > 0 {
             pdfView.autoScales = false
             pdfView.scaleFactor = state.scale
         }
@@ -233,6 +239,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
 
     @objc func closeFind(_ sender: Any?) {
         pdfView.document?.cancelFindString()
+        searching = false
         clearMatches()
         findStrip.isHidden = true
         window?.makeFirstResponder(pdfView)
@@ -258,6 +265,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         searchedText = text
         guard !text.isEmpty else { return }
         doc.delegate = self
+        searchStartPage = currentPageIndex
         searching = true
         findCount.stringValue = "Searching…"
         doc.beginFindString(text, withOptions: [.caseInsensitive])
@@ -271,20 +279,40 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         findCount.stringValue = ""
     }
 
+    /// Matches arrive in page order; the first shown is the first at or after the page in view
+    /// when the search began.
     func didMatchString(_ instance: PDFSelection) {
+        guard searching, let doc = pdfView.document,
+              let page = instance.pages.first, page.document === doc else { return }
         instance.color = .systemYellow
         matches.append(instance)
-        if matchIndex < 0 {
-            matchIndex = 0
+        if matchIndex < 0, doc.index(for: page) >= searchStartPage {
+            matchIndex = matches.count - 1
             showCurrentMatch()
         }
         updateCount()
     }
 
+    /// Ignores the end of a search that a newer one replaced or that ran on a replaced document.
     func documentDidEndDocumentFind(_ notification: Notification) {
+        guard searching, let doc = pdfView.document, notification.object as? PDFDocument === doc,
+              !doc.isFinding else { return }
         searching = false
+        if matchIndex < 0, !matches.isEmpty {
+            matchIndex = 0
+            showCurrentMatch()
+        }
         pdfView.highlightedSelections = matches
         updateCount()
+    }
+
+    /// Escape closes the find strip wherever focus is in the window.
+    override func cancelOperation(_ sender: Any?) {
+        if findStrip.isHidden {
+            nextResponder?.tryToPerform(#selector(NSResponder.cancelOperation(_:)), with: sender)
+        } else {
+            closeFind(sender)
+        }
     }
 
     private func updateCount() {
