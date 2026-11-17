@@ -42,9 +42,7 @@ public struct PrintSubmitter {
 
     /// Returns the CUPS job id from `request id is <id> (1 file(s))`.
     public func submit(_ args: [String]) throws -> String {
-        var env = ProcessInfo.processInfo.environment
-        env["HOME"] = emptyHome.path
-        let r = try runner.run("/usr/bin/lp", args, environment: env)
+        let r = try runner.run("/usr/bin/lp", args, environment: environment(emptyHome: emptyHome))
         guard r.status == 0 else { throw CupsError(command: "lp", stderr: r.stderr) }
         let prefix = "request id is "
         guard let line = r.stdout.split(whereSeparator: \.isNewline).first(where: { $0.hasPrefix(prefix) }),

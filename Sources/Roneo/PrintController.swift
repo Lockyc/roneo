@@ -10,7 +10,7 @@ final class PrintController: NSObject, NSTextFieldDelegate {
     private weak var windowController: DocumentWindowController?
     private weak var document: PDFFileDocument?
     private let bar: PrintBarView
-    private let cups = Cups(runner: ProcessRunner())
+    private let cups = Cups(runner: ProcessRunner(), emptyHome: PrintController.emptyHome)
     private let queue = DispatchQueue(label: "roneo.print", qos: .userInitiated)
 
     /// Queue names; nil while the list is loading.

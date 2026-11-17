@@ -50,3 +50,10 @@ PageSize/Media Size: A4 *Letter
 MediaType/MediaType: *plain
 InputSlot/Media Source: *tray1 tray2
 """)
+
+let testEmptyHome = URL(fileURLWithPath: "/private/var/empty-home")
+
+extension Cups {
+    /// Queries that never read `HOME` don't care which empty home they get.
+    init(runner: CommandRunner) { self.init(runner: runner, emptyHome: testEmptyHome) }
+}

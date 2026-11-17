@@ -53,12 +53,22 @@ public struct CupsError: Error, Equatable {
     public let stderr: String
 }
 
-/// Printer discovery over the CUPS command-line tools.
-public struct Cups {
-    private let runner: CommandRunner
+/// The inherited environment with `HOME` at `emptyHome`, so no `~/.cups/lpoptions` applies.
+func environment(emptyHome: URL) -> [String: String] {
+    var env = ProcessInfo.processInfo.environment
+    env["HOME"] = emptyHome.path
+    return env
+}
 
-    public init(runner: CommandRunner) {
+/// Printer discovery over the CUPS command-line tools.
+public struct Cups: Sendable {
+    private let runner: CommandRunner
+    private let emptyHome: URL
+
+    /// `emptyHome` is the empty directory `lpoptions` runs with as `HOME`, as `lp` does.
+    public init(runner: CommandRunner, emptyHome: URL) {
         self.runner = runner
+        self.emptyHome = emptyHome
     }
 
     /// Runs a CUPS query with the inherited environment.
@@ -103,8 +113,9 @@ public struct Cups {
         return text.isEmpty ? printer : text
     }
 
+    /// The printer's options and its own defaults; user-saved defaults never apply.
     public func capabilities(for printer: String) throws -> PrinterCapabilities {
-        let r = try run("lpoptions", ["-p", printer, "-l"])
+        let r = try runner.run("lpoptions", ["-p", printer, "-l"], environment: environment(emptyHome: emptyHome))
         guard r.status == 0 else { throw CupsError(command: "lpoptions -p \(printer) -l", stderr: r.stderr) }
         return PrinterOptionsParser.parse(r.stdout)
     }

@@ -82,8 +82,19 @@ final class CupsTests: XCTestCase {
     }
 
     func testCapabilitiesUsesPrinterFlag() throws {
-        let cups = Cups(runner: FakeRunner(outputs: ["lpoptions -p P -l": brotherFixture]))
+        let cups = Cups(runner: FakeRunner(outputs: ["lpoptions -p P -l": brotherFixture]), emptyHome: home)
         XCTAssertEqual(try cups.capabilities(for: "P").options.count, 7)
+    }
+
+    private let home = URL(fileURLWithPath: "/private/var/lpoptions-free")
+
+    /// The bar's starting values are the printer's own defaults, never `~/.cups/lpoptions`.
+    func testCapabilitiesRunWithTheEmptyHome() throws {
+        let runner = RecordingRunner(outputs: ["lpoptions -p P -l": brotherFixture])
+        _ = try Cups(runner: runner, emptyHome: home).capabilities(for: "P")
+        let env = try XCTUnwrap(runner.calls.first?.environment)
+        XCTAssertEqual(env["HOME"], home.path)
+        XCTAssertEqual(env["PATH"], ProcessInfo.processInfo.environment["PATH"])
     }
 
     func testPrinterDescription() {
