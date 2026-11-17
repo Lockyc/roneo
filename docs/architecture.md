@@ -84,10 +84,11 @@ show. Defaults, identical for every new window:
 
 The bytes the window shows go to CUPS (from a scratch copy, deleted once `lp` returns),
 equivalent to `lp -d <printer> -n <copies> -o sides=… -o print-scaling=none|fit
--o page-ranges=… -o PageSize=… -o MediaType=… -o InputSlot=… -o ColorModel=…`. Pages are never
+-o page-ranges=… -o PageSize=… -o MediaType=… -o InputSlot=… -o ColorModel=… -t <document name>`. Pages are never
 re-rendered by the app, so 100% is byte-exact; page ranges go ascending and merged. The printer
 list and each printer's options come from CUPS (destinations and the printer's PPD or IPP
-attributes); every CUPS command is cut off after `ProcessRunner.timeout`. The app is not
+attributes); a CUPS query is cut off after `ProcessRunner.timeout`, `lp` after
+`PrintSubmitter.timeout`. The app is not
 sandboxed.
 
 - Every job carries the bar's options plus explicit neutral values for each layout-changing
