@@ -59,6 +59,10 @@ sparkle-bin:
     @swift package resolve >/dev/null
     @echo "{{justfile_directory()}}/.build/artifacts/sparkle/Sparkle/bin"
 
+# Write the test PDFs into build/fixtures: long (pages, default 600), two-page, landscape, label sheet, locked (password roneo)
+fixtures pages="600":
+    swift scripts/fixtures.swift build/fixtures {{pages}}
+
 # Build and launch the local bundle
 run: bundle quit
     @just launch {{app}}
