@@ -1,5 +1,6 @@
 import AppKit
 import PDFKit
+import RoneoCore
 
 /// A PDF open for viewing. Read-only: never edited, saved or autosaved. The whole file is read into
 /// memory, so the window keeps showing it if the file is replaced mid-write or deleted.
@@ -22,6 +23,8 @@ import PDFKit
     private var reloadTimer: Timer?
     /// The file's size when the reload timer last started.
     private var sizeAtChange: Int?
+    /// The version of the file `data` was read from.
+    private var loadedStamp: FileStamp?
 
     /// How long the file must go without changing before it is re-read.
     private static let settleDelay: TimeInterval = 0.25
@@ -32,6 +35,13 @@ import PDFKit
     override class func isNativeType(_ type: String) -> Bool { false }
     override class func canConcurrentlyReadDocuments(ofType typeName: String) -> Bool { true }
     override var isEntireFileLoaded: Bool { true }
+
+    /// Taken before reading, so a write that lands mid-read leaves a stale stamp and reloads again.
+    override func read(from url: URL, ofType typeName: String) throws {
+        let stamp = FileStamp(of: url)
+        try super.read(from: url, ofType: typeName)
+        loadedStamp = stamp
+    }
 
     override func read(from data: Data, ofType typeName: String) throws {
         guard let pdf = PDFDocument(data: data) else {
@@ -109,11 +119,14 @@ import PDFKit
 
     /// Re-reads the file once it has stopped changing, keeping the window's page and zoom. Each
     /// change restarts the wait; a file that can't be read (missing, mid-write) leaves the last good
-    /// content on screen.
+    /// content on screen. A notification that leaves the file's `FileStamp` as read is ignored:
+    /// reading the file sets its access date, which is itself reported here.
     override func presentedItemDidChange() {
         DispatchQueue.main.async { [weak self] in
-            self?.scheduleReload()
-            self?.controller?.printController?.refresh()
+            guard let self, let url = self.fileURL,
+                  self.reloadTimer != nil || FileStamp(of: url) != self.loadedStamp else { return }
+            self.scheduleReload()
+            self.controller?.printController?.refresh()
         }
     }
 
@@ -145,11 +158,11 @@ import PDFKit
             return
         }
         guard let url = fileURL, let fileType, let controller else { return }
-        let previous = (pdf, data)
+        let previous = (pdf, data, loadedStamp)
         do {
             try revert(toContentsOf: url, ofType: fileType)
         } catch {
-            (pdf, data) = previous
+            (pdf, data, loadedStamp) = previous
             return
         }
         guard let pdf else { return }
