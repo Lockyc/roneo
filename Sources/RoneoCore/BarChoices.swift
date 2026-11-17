@@ -49,14 +49,7 @@ extension PageSelection {
         case .all: return documentPages
         case .current: return 1
         case .range(let text):
-            guard let normal = PageRange.normalize(text, pageCount: documentPages) else { return nil }
-            var pages = Set<Int>()
-            for part in normal.split(separator: ",") {
-                let bounds = part.split(separator: "-").compactMap { Int($0) }
-                guard let first = bounds.first, let last = bounds.last, first <= last else { return nil }
-                pages.formUnion(first...last)
-            }
-            return pages.count
+            return PageRange.ranges(text, pageCount: documentPages)?.reduce(0) { $0 + $1.count }
         }
     }
 }

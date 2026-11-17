@@ -33,6 +33,7 @@ final class BarChoicesTests: XCTestCase {
         XCTAssertEqual(PageSelection.range("1-3, 5").pageCount(of: 7), 4)
         XCTAssertEqual(PageSelection.range("2,2").pageCount(of: 7), 1)
         XCTAssertEqual(PageSelection.range("1-4, 3-6").pageCount(of: 7), 6)
+        XCTAssertEqual(PageSelection.range("5, 1-3, 4").pageCount(of: 7), 5)
         XCTAssertEqual(PageSelection.range("8").pageCount(of: 7), nil)
     }
 }

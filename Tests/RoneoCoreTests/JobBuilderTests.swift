@@ -49,7 +49,7 @@ final class JobBuilderTests: XCTestCase {
     }
 
     func testRangeIsNormalised() {
-        XCTAssertTrue(args(base { $0.pages = .range("1-3, 5") }).contains("page-ranges=1-3,5"))
+        XCTAssertTrue(args(base { $0.pages = .range("5, 1-3") }).contains("page-ranges=1-3,5"))
     }
 
     func testInvalidRangeIsStillPassedThrough() {
