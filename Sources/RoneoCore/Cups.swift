@@ -66,9 +66,16 @@ public struct Cups {
         try runner.run(executable, args, environment: nil)
     }
 
+    /// The queues and the system default. No destinations is an empty list, whichever way `lpstat`
+    /// reports it (macOS: no output, exit 0; upstream CUPS: "No destinations added.", exit 1).
     public func printers() throws -> (names: [String], defaultName: String?) {
         let list = try run("lpstat", ["-e"])
-        guard list.status == 0 else { throw CupsError(command: "lpstat -e", stderr: list.stderr) }
+        if list.status != 0 {
+            guard list.stderr.contains("No destinations added") else {
+                throw CupsError(command: "lpstat -e", stderr: list.stderr)
+            }
+            return ([], nil)
+        }
         let names = list.stdout.split(whereSeparator: \.isNewline)
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }

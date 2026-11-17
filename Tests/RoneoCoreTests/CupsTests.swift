@@ -66,6 +66,21 @@ final class CupsTests: XCTestCase {
         XCTAssertEqual(try cups.printers().names, ["A", "B_two"])
     }
 
+    /// macOS `lpstat -e` prints nothing and exits 0 with no destinations; upstream CUPS exits 1
+    /// with "No destinations added.". Both are an empty list, not an unreachable print system.
+    func testNoDestinationsIsAnEmptyList() throws {
+        let none = CommandResult(status: 0, stdout: "no system default destination\n", stderr: "")
+        for list in [CommandResult(status: 0, stdout: "", stderr: ""),
+                     CommandResult(status: 1, stdout: "", stderr: "lpstat: No destinations added.\n")] {
+            let cups = Cups(runner: RecordingRunner(results: ["lpstat -e": list, "lpstat -d": none]))
+            let printers = try cups.printers()
+            XCTAssertEqual(printers.names, [])
+            XCTAssertNil(printers.defaultName)
+        }
+        let down = CommandResult(status: 1, stdout: "", stderr: "lpstat: Scheduler is not running.\n")
+        XCTAssertThrowsError(try Cups(runner: RecordingRunner(results: ["lpstat -e": down, "lpstat -d": none])).printers())
+    }
+
     func testCapabilitiesUsesPrinterFlag() throws {
         let cups = Cups(runner: FakeRunner(outputs: ["lpoptions -p P -l": brotherFixture]))
         XCTAssertEqual(try cups.capabilities(for: "P").options.count, 7)
