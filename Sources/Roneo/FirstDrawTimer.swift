@@ -32,7 +32,8 @@ enum FirstDrawTimer {
     }
 }
 
-/// The document window's `PDFView`: reports each page it draws to `FirstDrawTimer`.
+/// The document window's `PDFView` under `RONEO_PERF=1`: reports each page it draws to
+/// `FirstDrawTimer`.
 final class PageView: PDFView {
     override func draw(_ page: PDFPage, to context: CGContext) {
         super.draw(page, to: context)

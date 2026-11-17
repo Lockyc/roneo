@@ -5,7 +5,8 @@ import PDFKit
 /// the print bar's container, the find strip (shown by ⌘F) and the `PDFView`.
 final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMenuItemValidation,
     NSSearchFieldDelegate, PDFDocumentDelegate {
-    let pdfView: PDFView = PageView()
+    /// A `PageView` only when `FirstDrawTimer` is on, so the draw override never costs a normal run.
+    let pdfView: PDFView = FirstDrawTimer.isEnabled ? PageView() : PDFView()
     /// Holds the print bar, above the page. Empty until the bar is installed.
     let barContainer = NSView()
     /// Fixes `barContainer` at zero height while it is empty; deactivate it when installing the bar.
