@@ -5,8 +5,10 @@ import PDFKit
 /// memory, so the window keeps showing it if the file is replaced mid-write or deleted.
 @objc(PDFFileDocument) final class PDFFileDocument: NSDocument {
     private(set) var pdf: PDFDocument?
+    /// The bytes `pdf` was parsed from; Print sends these, so the job is what the window shows.
+    private(set) var data: Data?
     /// The password that unlocked this file, reused when a change on disk reloads it and when
-    /// printing opens its own copy of the file.
+    /// printing unlocks its own copy of `data`.
     private(set) var password: String?
     /// Page and zoom from window restoration, applied once the document is viewable (after unlock).
     private var restoredView: DocumentWindowController.ViewState?
@@ -37,6 +39,7 @@ import PDFKit
         }
         if pdf.isLocked, let password { pdf.unlock(withPassword: password) }
         self.pdf = pdf
+        self.data = data
     }
 
     override func makeWindowControllers() {
@@ -142,11 +145,11 @@ import PDFKit
             return
         }
         guard let url = fileURL, let fileType, let controller else { return }
-        let previous = pdf
+        let previous = (pdf, data)
         do {
             try revert(toContentsOf: url, ofType: fileType)
         } catch {
-            pdf = previous
+            (pdf, data) = previous
             return
         }
         guard let pdf else { return }

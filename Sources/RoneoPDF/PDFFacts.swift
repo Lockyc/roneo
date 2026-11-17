@@ -20,18 +20,22 @@ public enum PDFFacts {
     }
 }
 
-/// Chooses the file CUPS receives for a document.
+/// Writes the file CUPS receives for a document.
 public enum PrintableFile {
-    /// The original file, or for an encrypted document a temporary unencrypted copy in `scratch`
-    /// (created when missing); the caller removes a temporary copy after the job. The copy is built
-    /// from copies of the pages in a fresh document: writing the unlocked document itself keeps its
-    /// encryption.
-    public static func url(
-        for doc: PDFDocument, original: URL, scratch: URL
-    ) throws -> (url: URL, isTemporary: Bool) {
-        guard doc.isEncrypted else { return (original, false) }
+    /// Writes `data`, the exact bytes the window parsed, to a new file in `scratch` (created when
+    /// missing) and returns it; the caller removes it after the job. A document that needs a
+    /// password to open is written instead as an unencrypted copy unlocked with `password`, built
+    /// from copies of its pages in a fresh document (writing the unlocked document itself keeps its
+    /// encryption). Throws when `data` isn't a PDF or `password` doesn't unlock it.
+    public static func write(_ data: Data, password: String?, scratch: URL) throws -> URL {
+        guard let doc = PDFDocument(data: data) else { throw CocoaError(.fileReadCorruptFile) }
         try FileManager.default.createDirectory(at: scratch, withIntermediateDirectories: true)
-        let copy = scratch.appendingPathComponent("\(UUID().uuidString).pdf")
+        let url = scratch.appendingPathComponent("\(UUID().uuidString).pdf")
+        guard doc.isLocked else {
+            try data.write(to: url)
+            return url
+        }
+        guard let password, doc.unlock(withPassword: password) else { throw CocoaError(.fileReadNoPermission) }
         let plain = PDFDocument()
         for index in 0..<doc.pageCount {
             guard let page = doc.page(at: index)?.copy() as? PDFPage else {
@@ -39,9 +43,9 @@ public enum PrintableFile {
             }
             plain.insert(page, at: index)
         }
-        guard plain.write(to: copy) else {
-            throw CocoaError(.fileWriteUnknown, userInfo: [NSFilePathErrorKey: copy.path])
+        guard plain.write(to: url) else {
+            throw CocoaError(.fileWriteUnknown, userInfo: [NSFilePathErrorKey: url.path])
         }
-        return (copy, true)
+        return url
     }
 }

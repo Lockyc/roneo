@@ -73,32 +73,63 @@ final class PDFFactsTests: XCTestCase {
         XCTAssertTrue(PDFFacts.firstPageIsLandscape(doc))
     }
 
-    func testPlainFileIsOriginal() throws {
-        let url = try makePDF("plain.pdf")
-        let doc = try open(url)
-        let r = try PrintableFile.url(for: doc, original: url, scratch: dir.appendingPathComponent("s"))
-        XCTAssertEqual(r.url, url)
-        XCTAssertFalse(r.isTemporary)
+    private var scratch: URL { dir.appendingPathComponent("scratch") }
+
+    func testPlainFileSendsTheGivenBytes() throws {
+        let bytes = try Data(contentsOf: makePDF("plain.pdf"))
+        let url = try PrintableFile.write(bytes, password: nil, scratch: scratch)
+        XCTAssertTrue(url.path.hasPrefix(scratch.path))
+        XCTAssertEqual(try Data(contentsOf: url), bytes)
     }
 
-    func testEncryptedUnlockedCopyIsUnencrypted() throws {
-        let url = try makeCropped("enc.pdf", rotation: 90, encrypted: true)
-        let doc = try open(url)
+    /// Encrypted for permissions only: opens without a password, so it prints from its own bytes.
+    func testPermissionOnlyEncryptedSendsTheGivenBytes() throws {
+        let url = try makePDF("perm.pdf", aux: [kCGPDFContextOwnerPassword: "o"])
+        let bytes = try Data(contentsOf: url)
+        let doc = try XCTUnwrap(PDFDocument(data: bytes))
         XCTAssertTrue(doc.isEncrypted)
-        XCTAssertTrue(doc.unlock(withPassword: "u"))
-        let scratch = dir.appendingPathComponent("scratch")
-        let r = try PrintableFile.url(for: doc, original: url, scratch: scratch)
-        XCTAssertTrue(r.isTemporary)
-        XCTAssertNotEqual(r.url, url)
-        XCTAssertTrue(r.url.path.hasPrefix(scratch.path))
-        let copy = try open(r.url)
+        XCTAssertFalse(doc.isLocked)
+        XCTAssertEqual(try Data(contentsOf: PrintableFile.write(bytes, password: nil, scratch: scratch)), bytes)
+    }
+
+    func testPasswordLockedCopyIsUnencrypted() throws {
+        let bytes = try Data(contentsOf: makeCropped("enc.pdf", rotation: 90, encrypted: true))
+        let doc = try XCTUnwrap(PDFDocument(data: bytes))
+        XCTAssertTrue(doc.isLocked)
+        let url = try PrintableFile.write(bytes, password: "u", scratch: scratch)
+        XCTAssertTrue(url.path.hasPrefix(scratch.path))
+        let copy = try open(url)
         XCTAssertFalse(copy.isEncrypted)
         XCTAssertEqual(copy.pageCount, doc.pageCount)
         XCTAssertEqual(
-            copy.page(at: 0)?.bounds(for: .mediaBox), doc.page(at: 0)?.bounds(for: .mediaBox))
-        XCTAssertEqual(
             copy.page(at: 0)?.bounds(for: .cropBox), CGRect(x: 10, y: 20, width: 500, height: 300))
         XCTAssertEqual(copy.page(at: 0)?.rotation, 90)
+    }
+
+    func testPasswordLockedWithoutPasswordThrows() throws {
+        let bytes = try Data(contentsOf: makeCropped("enc2.pdf", encrypted: true))
+        XCTAssertThrowsError(try PrintableFile.write(bytes, password: nil, scratch: scratch))
+        XCTAssertThrowsError(try PrintableFile.write(bytes, password: "wrong", scratch: scratch))
+    }
+
+    func testPasswordLockedCopyKeepsAnnotations() throws {
+        let doc = try open(makePDF("a.pdf"))
+        let page = try XCTUnwrap(doc.page(at: 0))
+        let square = PDFAnnotation(bounds: CGRect(x: 100, y: 100, width: 200, height: 150),
+                                   forType: .square, withProperties: nil)
+        square.color = .red
+        page.addAnnotation(square)
+        let text = PDFAnnotation(bounds: CGRect(x: 100, y: 400, width: 200, height: 40),
+                                 forType: .freeText, withProperties: nil)
+        text.contents = "Kept"
+        page.addAnnotation(text)
+        let locked = dir.appendingPathComponent("a-enc.pdf")
+        XCTAssertTrue(doc.write(to: locked, withOptions: [.userPasswordOption: "u", .ownerPasswordOption: "o"]))
+
+        let url = try PrintableFile.write(Data(contentsOf: locked), password: "u", scratch: scratch)
+        let kept = try XCTUnwrap(open(url).page(at: 0)).annotations
+        XCTAssertEqual(Set(kept.compactMap(\.type)), ["Square", "FreeText"])
+        XCTAssertEqual(kept.first { $0.type == "FreeText" }?.contents, "Kept")
     }
 
     func testNoPrintPermission() throws {

@@ -43,7 +43,7 @@ final class PrintController: NSObject, NSTextFieldDelegate {
     private static let pollInterval: TimeInterval = 1
     private static let pollLimit: TimeInterval = 120
 
-    /// Scratch space for unlocked copies of encrypted PDFs.
+    /// Scratch space for the files `lp` is given, and `emptyHome`.
     private static let scratch = FileManager.default.temporaryDirectory.appendingPathComponent("roneo")
     /// The `HOME` `lp` runs with: empty, so no `~/.cups/lpoptions` applies.
     private static let emptyHome: URL = {
@@ -289,7 +289,7 @@ final class PrintController: NSObject, NSTextFieldDelegate {
     /// repeats are ignored, so holding it sends one job.
     func printFromBar() {
         if let event = NSApp.currentEvent, event.type == .keyDown, event.isARepeat { return }
-        guard blockReason == nil, let settings, let pdf, let original = document?.fileURL,
+        guard blockReason == nil, let settings, let pdf, let data = document?.data,
               let windowController else { return }
         let pageCount = pdf.pageCount
         let currentPage = windowController.currentPageIndex + 1
@@ -305,16 +305,12 @@ final class PrintController: NSObject, NSTextFieldDelegate {
         let submitter = PrintSubmitter(runner: ProcessRunner(), emptyHome: Self.emptyHome)
         queue.async { [weak self] in
             let result = Result { () throws -> String in
-                // PDFDocument isn't thread-safe and the view reads the window's on main, so the
-                // printable file comes from a document of its own, opened and unlocked here.
-                guard let own = PDFDocument(url: original) else { throw CocoaError(.fileReadCorruptFile) }
-                if own.isLocked, !(password.map(own.unlock(withPassword:)) ?? false) {
-                    throw CocoaError(.fileReadNoPermission)
-                }
-                let file = try PrintableFile.url(for: own, original: original, scratch: Self.scratch)
-                defer { if file.isTemporary { try? FileManager.default.removeItem(at: file.url) } }
+                // The bytes the window parsed, so pages, landscape and preflight match what is
+                // sent; PDFDocument isn't thread-safe, so the window's own is never touched here.
+                let file = try PrintableFile.write(data, password: password, scratch: Self.scratch)
+                defer { try? FileManager.default.removeItem(at: file) }
                 return try submitter.submit(JobBuilder.lpArguments(
-                    settings: settings, file: file.url, currentPage: currentPage,
+                    settings: settings, file: file, currentPage: currentPage,
                     pageCount: pageCount, firstPageLandscape: landscape))
             }
             DispatchQueue.main.async {
