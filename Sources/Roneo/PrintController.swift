@@ -15,7 +15,7 @@ final class PrintController: NSObject, NSTextFieldDelegate {
 
     /// nil while the list is loading.
     private var printers: [String]?
-    /// Why the printers or the selected printer's options couldn't be read; blocks Print.
+    /// Why the printer list couldn't be read; blocks Print.
     private var loadFailure: String?
     private var capabilities: [String: PrinterCapabilities] = [:]
     /// True while the selected printer's options load.
@@ -30,6 +30,8 @@ final class PrintController: NSObject, NSTextFieldDelegate {
 
     private static let loadingReason = "Loading printers…"
     private static let unreachable = "Can't reach the print system"
+    /// Shown before any settings exist for `Preflight` to judge; the same words it uses.
+    private static let noPrinters = "No printers set up"
     private static let pollInterval: TimeInterval = 1
     private static let pollLimit: TimeInterval = 120
 
@@ -134,9 +136,9 @@ final class PrintController: NSObject, NSTextFieldDelegate {
                 if let caps, let latest = self.settings {
                     self.capabilities[name] = caps
                     self.settings = latest.switching(to: name, capabilities: caps)
-                    self.loadFailure = nil
                 } else {
-                    self.loadFailure = "Can't read \(name)'s options"
+                    // The bar stays on the printer it showed, which is still the one Print uses.
+                    self.show("Can't read \(name)'s options")
                 }
                 self.render()
             }
@@ -224,7 +226,7 @@ final class PrintController: NSObject, NSTextFieldDelegate {
         guard let printers, !loadingOptions else { return Self.loadingReason }
         if let loadFailure { return loadFailure }
         guard let settings, let pdf, let url = document?.fileURL else {
-            return printers.isEmpty ? "No printers set up" : Self.loadingReason
+            return printers.isEmpty ? Self.noPrinters : Self.loadingReason
         }
         if pdf.isLocked { return "Unlock the PDF to print" }
         if sending { return "Sending…" }
@@ -331,8 +333,8 @@ final class PrintController: NSObject, NSTextFieldDelegate {
         let caps = selectedCapabilities
         let blocked: String? = {
             guard let printers, !loadingOptions else { return Self.loadingReason }
-            if printers.isEmpty { return loadFailure ?? "No printers set up" }
-            return settings == nil ? (loadFailure ?? Self.loadingReason) : nil
+            if printers.isEmpty { return loadFailure ?? Self.noPrinters }
+            return settings == nil ? Self.loadingReason : nil
         }()
 
         renderPrinterPopup(blocked: blocked)
