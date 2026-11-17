@@ -3,14 +3,14 @@ import PDFKit
 import RoneoCore
 import RoneoPDF
 
-/// Runs one window's print bar: loads the printers off the main thread, keeps the window's
+/// Runs one window's print bar: takes the printers from `PrinterDirectory`, keeps the window's
 /// `PrintSettings` in step with the controls, gates Print on `Preflight` and sends the job to CUPS,
 /// then shows its state. Its settings live and die with the window; nothing is persisted.
 final class PrintController: NSObject, NSTextFieldDelegate {
     private weak var windowController: DocumentWindowController?
     private weak var document: PDFFileDocument?
     private let bar: PrintBarView
-    private let cups = Cups(runner: ProcessRunner(), emptyHome: PrintController.emptyHome)
+    private let cups = PrinterDirectory.shared.cups
     private let queue = DispatchQueue(label: "roneo.print", qos: .userInitiated)
 
     /// Queue names; nil while the list is loading.
@@ -42,9 +42,6 @@ final class PrintController: NSObject, NSTextFieldDelegate {
     private static let noPrinters = "No printers set up"
     private static let pollInterval: TimeInterval = 1
     private static let pollLimit: TimeInterval = 120
-
-    /// The `HOME` the CUPS tools run with: empty, so no `~/.cups/lpoptions` applies.
-    static let emptyHome = Scratch.app.makeEmptyHome()
 
     /// Installs the bar in `window`'s bar container in its loading state and starts loading the
     /// printers in the background.
@@ -91,29 +88,11 @@ final class PrintController: NSObject, NSTextFieldDelegate {
 
     // MARK: Loading
 
-    private struct Loaded {
-        let names: [String]
-        let descriptions: [String: String]
-        let first: String?
-        /// nil when there is no printer or its options couldn't be read.
-        let caps: PrinterCapabilities?
-    }
-
     private func loadPrinters() {
-        let cups = self.cups
-        queue.async { [weak self] in
-            let result = Result { () throws -> Loaded in
-                let list = try cups.printers()
-                let first = list.defaultName.flatMap { list.names.contains($0) ? $0 : nil } ?? list.names.first
-                let descriptions = Dictionary(uniqueKeysWithValues: list.names.map { ($0, cups.description(of: $0)) })
-                return Loaded(names: list.names, descriptions: descriptions, first: first,
-                              caps: first.flatMap { try? cups.capabilities(for: $0) })
-            }
-            DispatchQueue.main.async { self?.printersLoaded(result) }
-        }
+        PrinterDirectory.shared.load { [weak self] in self?.printersLoaded($0) }
     }
 
-    private func printersLoaded(_ result: Result<Loaded, Error>) {
+    private func printersLoaded(_ result: Result<PrinterDirectory.Printers, Error>) {
         switch result {
         case .success(let loaded):
             printers = loaded.names
@@ -296,7 +275,7 @@ final class PrintController: NSObject, NSTextFieldDelegate {
         sending = true
         show("Sending…")
         render()
-        let submitter = PrintSubmitter(runner: ProcessRunner(), emptyHome: Self.emptyHome)
+        let submitter = PrintSubmitter(runner: ProcessRunner(), emptyHome: PrinterDirectory.emptyHome)
         queue.async { [weak self] in
             let result = Result { () throws -> String in
                 // The bytes the window parsed, so pages, landscape and preflight match what is
