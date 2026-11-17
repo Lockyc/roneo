@@ -219,7 +219,8 @@ final class PrintController: NSObject, NSTextFieldDelegate {
 
     private var selectedCapabilities: PrinterCapabilities? { settings.flatMap { capabilities[$0.printer] } }
 
-    private var pdf: PDFDocument? { windowController?.pdfView.document }
+    /// The document's PDF, which exists (locked or not) before the view shows it.
+    private var pdf: PDFDocument? { document?.pdf }
 
     /// Why Print is unavailable now, or nil when ⌘P and Print send the job.
     private var blockReason: String? {
