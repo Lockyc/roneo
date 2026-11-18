@@ -44,12 +44,19 @@ Find (⌘F, ⌘G), page up and down, and go-to-page (⌥⌘G).
 
 ## Print bar
 
-A strip across the top of each document window, above the page, always visible:
+A strip across the full width of each document window, above the sidebar and the page, always
+visible:
 
 ```
-Printer [name ▾]  Sides [Single|Double]  Scale [100%|Fit]  Pages [All|Current|Range: ___]  Copies [1 ⌃⌄]
-Paper [ ▾]  Type [ ▾]  Tray [ ▾]  Colour [Colour|Grey]                              [ Print ]
+Printer [name        ▾]  Paper [ ▾]  Type [ ▾]  Tray [ ▾]       │ Copies [1 ⌃⌄]
+  Pages [All|Current|Range] [___]  Sides [Single|Double]  Scale [100%|Fit]  Colour [Colour|Grey]  │ [   Print   ]
 ```
+
+- The settings are a grid with the labels trailing-aligned in their own columns. When the window
+  is too narrow for two rows they reflow to four, two pairs to a row; the window's minimum width
+  is the four-row bar (`PrintBarView.minimumWidth`).
+- The bar never moves while the view scrolls: the Current segment keeps one width per document,
+  sized for its largest page number (`PrintBarView.setCurrentPage`).
 
 Every control shows a setting the job will use; a job never carries a setting the bar did not
 show. Defaults, identical for every new window:

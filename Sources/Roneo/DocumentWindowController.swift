@@ -1,8 +1,9 @@
 import AppKit
 import PDFKit
 
-/// One document window: a collapsible page-thumbnail sidebar beside the page column, which stacks
-/// the print bar's container, the find strip (shown by ⌘F) and the `PDFView`.
+/// One document window: the print bar's container across the top, above a collapsible
+/// page-thumbnail sidebar beside the page column, which stacks the find strip (shown by ⌘F) and
+/// the `PDFView`.
 final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMenuItemValidation,
     NSSearchFieldDelegate, PDFDocumentDelegate {
     /// A `PageView` only when `FirstDrawTimer` is on, so the draw override never costs a normal run.
@@ -15,6 +16,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     var printController: PrintController?
 
     private static let sidebarWidth: CGFloat = 140
+    /// Wide enough for the whole print bar unclipped.
+    private static let defaultWidth: CGFloat = 1100
     private let thumbnails = PDFThumbnailView()
     private let split = NSSplitView()
     private let findStrip = NSStackView()
@@ -47,7 +50,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
 
     init() {
         let visible = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1200, height: 900)
-        let size = NSSize(width: min(900, visible.width), height: min(1100, visible.height))
+        let size = NSSize(width: min(Self.defaultWidth, visible.width), height: min(1100, visible.height))
         let window = NSWindow(contentRect: NSRect(origin: .zero, size: size),
                               styleMask: [.titled, .closable, .miniaturizable, .resizable],
                               backing: .buffered, defer: true)
@@ -96,7 +99,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         barContainer.translatesAutoresizingMaskIntoConstraints = false
         barHeight.isActive = true
 
-        let column = NSStackView(views: [barContainer, findStrip, pdfView])
+        let column = NSStackView(views: [findStrip, pdfView])
         column.orientation = .vertical
         column.spacing = 0
         column.alignment = .width
@@ -109,7 +112,21 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         split.addArrangedSubview(thumbnails)
         split.addArrangedSubview(column)
         split.setHoldingPriority(.defaultHigh, forSubviewAt: 0)
-        window.contentView = split
+        split.translatesAutoresizingMaskIntoConstraints = false
+
+        let content = NSView(frame: window.contentLayoutRect)
+        content.addSubview(barContainer)
+        content.addSubview(split)
+        NSLayoutConstraint.activate([
+            barContainer.topAnchor.constraint(equalTo: content.topAnchor),
+            barContainer.leadingAnchor.constraint(equalTo: content.leadingAnchor),
+            barContainer.trailingAnchor.constraint(equalTo: content.trailingAnchor),
+            split.topAnchor.constraint(equalTo: barContainer.bottomAnchor),
+            split.leadingAnchor.constraint(equalTo: content.leadingAnchor),
+            split.trailingAnchor.constraint(equalTo: content.trailingAnchor),
+            split.bottomAnchor.constraint(equalTo: content.bottomAnchor),
+        ])
+        window.contentView = content
         window.layoutIfNeeded()
         split.setPosition(Self.sidebarWidth, ofDividerAt: 0)
 

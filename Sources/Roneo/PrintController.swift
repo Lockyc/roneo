@@ -59,6 +59,7 @@ final class PrintController: NSObject, NSTextFieldDelegate {
     private func install(in window: DocumentWindowController) {
         window.barHeight.isActive = false
         window.barContainer.addSubview(bar)
+        if let w = window.window { w.minSize.width = max(w.minSize.width, bar.minimumWidth) }
         NSLayoutConstraint.activate([
             bar.topAnchor.constraint(equalTo: window.barContainer.topAnchor),
             bar.bottomAnchor.constraint(equalTo: window.barContainer.bottomAnchor),
@@ -351,8 +352,7 @@ final class PrintController: NSObject, NSTextFieldDelegate {
         let caps = selectedCapabilities
         let blocked = controlsBlocked
 
-        let current = "Current (\((windowController?.currentPageIndex ?? 0) + 1))"
-        if bar.pages.label(forSegment: 1) != current { bar.pages.setLabel(current, forSegment: 1) }
+        bar.setCurrentPage((windowController?.currentPageIndex ?? 0) + 1, of: pdf?.pageCount ?? 1)
 
         renderPrinterPopup(blocked: blocked)
         if let blocked {
