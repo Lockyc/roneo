@@ -23,7 +23,8 @@ print path.
 - `Sources/Roneo/` — the AppKit executable (Sparkle for updates); no unit tests, so it takes its
   decisions from the two libraries. `PrintController` owns one window's print bar and takes over
   the window's `barHeight` placeholder constraint; `PrintBarView` is layout only.
-- `Tests/RoneoCoreTests/`, `Tests/RoneoPDFTests/` — XCTest, `swift test`.
+- `Tests/RoneoCoreTests/`, `Tests/RoneoPDFTests/` — XCTest, plus Swift Testing property tests
+  (`PropertyBased`) in RoneoCoreTests; `swift test` runs both.
 - `Support/Info.plist` — bundle template; `just bundle` stamps `VERSION` into it.
 - `Support/icon.svg` — icon master; `just icons` renders `AppIcon.icns` and `icon.png`.
 - `install.sh` — the curl-pipeable installer (latest release's `roneo.zip`, team ID and
