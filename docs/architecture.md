@@ -19,8 +19,8 @@ the file itself, so 100% is exact.
 - `RoneoCore` — Foundation only. Print-job decisions: settings and their defaults, preflight,
   the `lp` arguments (double-sided binding included), page ranges, CUPS queries and job state,
   the bar's display choices (`BarChoices`) and which printer it is on and why Print is blocked
-  (`BarState`); and whether an open file changed on disk
-  (`FileStamp`).
+  (`BarState`); and whether an open file changed on disk (`FileStamp`) and when it is re-read
+  (`ReloadGate`).
 - `RoneoPDF` — Foundation and PDFKit. Document facts the print path needs: first-page
   orientation, print permission, and the file `lp` receives (`PrintableFile`).
 - `Roneo` — the AppKit executable: document, window, viewer and print bar. `PrinterDirectory`

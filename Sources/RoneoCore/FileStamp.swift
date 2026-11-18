@@ -8,6 +8,12 @@ public struct FileStamp: Equatable, Sendable {
     public let size: Int
     public let modified: Date
 
+    init(fileNumber: Int, size: Int, modified: Date) {
+        self.fileNumber = fileNumber
+        self.size = size
+        self.modified = modified
+    }
+
     /// nil when the file is missing or unreadable.
     public init?(of url: URL) {
         guard let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),

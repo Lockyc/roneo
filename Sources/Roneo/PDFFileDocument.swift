@@ -17,14 +17,8 @@ import RoneoCore
     /// calls (reopening an open file) only bring the window forward.
     private var didPresent = false
     private var passwordSheetIsUp = false
-    /// The view state from before a burst of changes on disk, kept until a reload of a settled file
-    /// completes, so a reload of a half-written file can't move the view for good.
-    private var preReloadView: DocumentWindowController.ViewState?
+    private var reload = ReloadGate<DocumentWindowController.ViewState>()
     private var reloadTimer: Timer?
-    /// The file's size when the reload timer last started.
-    private var sizeAtChange: Int?
-    /// The version of the file `data` was read from.
-    private var loadedStamp: FileStamp?
 
     /// How long the file must go without changing before it is re-read.
     private static let settleDelay: TimeInterval = 0.25
@@ -36,11 +30,10 @@ import RoneoCore
     override class func canConcurrentlyReadDocuments(ofType typeName: String) -> Bool { true }
     override var isEntireFileLoaded: Bool { true }
 
-    /// Taken before reading, so a write that lands mid-read leaves a stale stamp and reloads again.
     override func read(from url: URL, ofType typeName: String) throws {
         let stamp = FileStamp(of: url)
         try super.read(from: url, ofType: typeName)
-        loadedStamp = stamp
+        reload.didRead(stamp)
     }
 
     override func read(from data: Data, ofType typeName: String) throws {
@@ -129,22 +122,20 @@ import RoneoCore
                 }
                 self.password = field.stringValue
             }
-            self.controller?.display(pdf, restoring: self.preReloadView ?? self.restoredView)
-            self.preReloadView = nil
+            self.controller?.display(pdf, restoring: self.reload.takePreReloadView() ?? self.restoredView)
         }
     }
 
     // MARK: Reload on change
 
-    /// Re-reads the file once it has stopped changing, keeping the window's page and zoom. Each
-    /// change restarts the wait; a file that can't be read (missing, mid-write) leaves the last good
-    /// content on screen. A notification that leaves the file's `FileStamp` as read is ignored:
-    /// reading the file sets its access date, which is itself reported here.
+    /// Re-reads the file once it has stopped changing (`ReloadGate`), keeping the window's page and
+    /// zoom; a file that can't be read leaves the last good content on screen.
     override func presentedItemDidChange() {
         DispatchQueue.main.async { [weak self] in
-            guard let self, let url = self.fileURL,
-                  self.reloadTimer != nil || FileStamp(of: url) != self.loadedStamp else { return }
-            self.scheduleReload()
+            guard let self, let url = self.fileURL else { return }
+            let view = self.pdf?.isLocked == false ? self.controller?.viewState : nil
+            guard self.reload.changed(stamp: FileStamp(of: url), size: self.fileSize, view: view) else { return }
+            self.startSettleTimer()
             self.controller?.printController?.refresh()
         }
     }
@@ -160,9 +151,7 @@ import RoneoCore
         return (try? FileManager.default.attributesOfItem(atPath: path))?[.size] as? Int
     }
 
-    private func scheduleReload() {
-        if preReloadView == nil, pdf?.isLocked == false { preReloadView = controller?.viewState }
-        sizeAtChange = fileSize
+    private func startSettleTimer() {
         reloadTimer?.invalidate()
         reloadTimer = Timer.scheduledTimer(withTimeInterval: Self.settleDelay, repeats: false) { [weak self] _ in
             self?.reloadIfSettled()
@@ -171,17 +160,20 @@ import RoneoCore
 
     private func reloadIfSettled() {
         reloadTimer = nil
-        guard let size = fileSize else { return }  // Missing: keep the last content.
-        guard size == sizeAtChange else {
-            scheduleReload()
-            return
+        switch reload.settled(size: fileSize) {
+        case .keepLastContent: return
+        case .wait: startSettleTimer()
+        case .reload: revertToFile()
         }
+    }
+
+    private func revertToFile() {
         guard let url = fileURL, let fileType, let controller else { return }
-        let previous = (pdf, data, loadedStamp)
+        let previous = (pdf, data, reload)
         do {
             try revert(toContentsOf: url, ofType: fileType)
         } catch {
-            (pdf, data, loadedStamp) = previous
+            (pdf, data, reload) = previous
             return
         }
         guard let pdf else { return }
@@ -190,8 +182,7 @@ import RoneoCore
             password = nil
             askForPassword(wrong: false)
         } else if !passwordSheetIsUp {
-            controller.display(pdf, restoring: preReloadView)
-            preReloadView = nil
+            controller.display(pdf, restoring: reload.takePreReloadView())
         }
     }
 

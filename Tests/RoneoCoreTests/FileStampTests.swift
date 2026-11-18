@@ -13,9 +13,16 @@ final class FileStampTests: XCTestCase {
         try? FileManager.default.removeItem(at: url)
     }
 
+    /// Backdates the file, so any later write gives it a different modification date without
+    /// waiting out the file system's timestamp granularity.
+    private func backdate() throws {
+        try FileManager.default.setAttributes([.modificationDate: Date(timeIntervalSinceNow: -60)],
+                                              ofItemAtPath: url.path)
+    }
+
     func testReadingTheFileIsNotAChange() throws {
+        try backdate()
         let before = FileStamp(of: url)
-        Thread.sleep(forTimeInterval: 0.05)
         _ = try Data(contentsOf: url)
         var accessed = URLResourceValues()
         accessed.contentAccessDate = Date()
@@ -25,9 +32,9 @@ final class FileStampTests: XCTestCase {
     }
 
     func testWritingTheFileIsAChange() throws {
+        try backdate()
         let before = FileStamp(of: url)
-        Thread.sleep(forTimeInterval: 0.05)
-        try Data("%PDF-1.4 two".utf8).write(to: url)
+        try Data("%PDF-1.4 one".utf8).write(to: url)
         XCTAssertNotEqual(FileStamp(of: url), before)
     }
 
