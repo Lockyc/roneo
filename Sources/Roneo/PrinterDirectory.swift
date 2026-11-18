@@ -6,15 +6,8 @@ import RoneoCore
 final class PrinterDirectory {
     static let shared = PrinterDirectory()
 
-    struct Printers {
-        let names: [String]
-        /// Each queue's description, the name the popup shows.
-        let descriptions: [String: String]
-        /// The system default when it is in `names`, else the first queue.
-        let first: String?
-        /// `first`'s options; nil when there is no printer or they couldn't be read.
-        let caps: PrinterCapabilities?
-    }
+    /// `first` is the system default when it is in `names`, else the first queue.
+    typealias Printers = BarState.Printers
 
     /// The `HOME` the CUPS tools run with: empty, so no `~/.cups/lpoptions` applies.
     static let emptyHome = Scratch.app.makeEmptyHome()

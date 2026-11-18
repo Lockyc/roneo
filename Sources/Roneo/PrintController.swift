@@ -13,34 +13,20 @@ final class PrintController: NSObject, NSTextFieldDelegate {
     private let cups = PrinterDirectory.shared.cups
     private let queue = DispatchQueue(label: "roneo.print", qos: .userInitiated)
 
-    /// Queue names; nil while the list is loading.
-    private var printers: [String]?
-    /// Each queue's description, the name the popup shows.
-    private var descriptions: [String: String] = [:]
-    /// Why the printer list couldn't be read; blocks Print.
-    private var loadFailure: String?
-    private var capabilities: [String: PrinterCapabilities] = [:]
-    /// The queue the popup shows; `settings.printer` whenever there are settings.
-    private var selectedPrinter: String?
-    /// Why `selectedPrinter`'s options couldn't be read while there are no settings yet.
-    private var optionsFailure: String?
-    /// True while the selected printer's options load.
-    private var loadingOptions = false
-    private var settings: PrintSettings?
+    private var state = BarState()
     /// The printer the Paper, Type and Tray menus were built for.
     private var menusPrinter: String?
     /// The Range field's text, kept while another Pages choice is selected.
     private var rangeText = ""
-    /// True from Print until `lp` returns.
-    private var sending = false
     /// Advances on every print, so a superseded job's polling stops updating the status.
     private var jobGeneration = 0
 
-    private static let loadingReason = "Loading printers…"
-    private static let unreachable = "Can't reach the print system"
-    /// Shown before any settings exist for `Preflight` to judge; the same words it uses.
-    private static let noPrinters = "No printers set up"
-    static let noPDF = "No PDF open"
+    private var settings: PrintSettings? {
+        get { state.settings }
+        set { state.settings = newValue }
+    }
+
+    static let noPDF = BarState.noPDF
     private static let pollInterval: TimeInterval = 1
     private static let pollLimit: TimeInterval = 120
 
@@ -95,59 +81,21 @@ final class PrintController: NSObject, NSTextFieldDelegate {
     }
 
     private func printersLoaded(_ result: Result<PrinterDirectory.Printers, Error>) {
-        switch result {
-        case .success(let loaded):
-            printers = loaded.names
-            descriptions = loaded.descriptions
-            if let name = loaded.first {
-                if let caps = loaded.caps {
-                    use(name, caps)
-                } else {
-                    selectedPrinter = name
-                    optionsFailure = cantRead(name)
-                }
-            }
-        case .failure:
-            printers = []
-            loadFailure = Self.unreachable
-        }
+        state.printersLoaded(result)
         render()
-    }
-
-    private func cantRead(_ printer: String) -> String { "Can't read \(descriptions[printer] ?? printer)'s options" }
-
-    /// Moves the bar to `printer`: its defaults for a first printer, `switching(to:)` after that.
-    private func use(_ printer: String, _ caps: PrinterCapabilities) {
-        capabilities[printer] = caps
-        settings = settings?.switching(to: printer, capabilities: caps) ?? .defaults(printer: printer, capabilities: caps)
-        selectedPrinter = printer
-        optionsFailure = nil
     }
 
     @objc private func printerChanged(_ sender: NSPopUpButton) {
-        guard let name = sender.selectedItem?.representedObject as? String, name != selectedPrinter else { return }
-        if let caps = capabilities[name] {
-            use(name, caps)
-            render()
-            return
-        }
-        loadingOptions = true
+        guard let name = sender.selectedItem?.representedObject as? String else { return }
+        let choice = state.choose(name)
         render()
+        guard case .loadOptions(let printer) = choice else { return }
         let cups = self.cups
         queue.async { [weak self] in
-            let caps = try? cups.capabilities(for: name)
+            let caps = try? cups.capabilities(for: printer)
             DispatchQueue.main.async {
                 guard let self else { return }
-                self.loadingOptions = false
-                if let caps {
-                    self.use(name, caps)
-                } else if self.settings != nil {
-                    // The bar stays on the printer it showed, which is still the one Print uses.
-                    self.show(self.cantRead(name))
-                } else {
-                    self.selectedPrinter = name
-                    self.optionsFailure = self.cantRead(name)
-                }
+                if let status = self.state.optionsLoaded(printer, caps) { self.show(status) }
                 self.render()
             }
         }
@@ -233,28 +181,19 @@ final class PrintController: NSObject, NSTextFieldDelegate {
 
     // MARK: Printing
 
-    private var selectedCapabilities: PrinterCapabilities? { settings.flatMap { capabilities[$0.printer] } }
+    private var selectedCapabilities: PrinterCapabilities? { state.selectedCapabilities }
 
     /// The document's PDF, which exists (locked or not) before the view shows it.
     private var pdf: PDFDocument? { document?.pdf }
 
-    /// Why the setting controls are unavailable, or nil when there are settings to show.
-    private var controlsBlocked: String? {
-        guard let printers, !loadingOptions else { return Self.loadingReason }
-        if printers.isEmpty { return loadFailure ?? Self.noPrinters }
-        return settings == nil ? optionsFailure ?? Self.loadingReason : nil
-    }
-
     /// Why Print is unavailable now, or nil when ⌘P and Print send the job.
     private var blockReason: String? {
-        guard let url = document?.fileURL else { return Self.noPDF }
-        if let controlsBlocked { return controlsBlocked }
-        guard let printers, let settings, let pdf else { return Self.loadingReason }
-        if pdf.isLocked { return "Unlock the PDF to print" }
-        if sending { return "Sending…" }
-        return Preflight.blockReason(settings: settings, printers: printers, pageCount: pdf.pageCount,
-                                     fileExists: FileManager.default.fileExists(atPath: url.path),
-                                     allowsPrinting: PDFFacts.allowsPrinting(pdf))
+        state.blockReason(document: document?.fileURL.map { url in
+            BarState.Document(
+                pdf: pdf.map { .init(pageCount: $0.pageCount, isLocked: $0.isLocked,
+                                     allowsPrinting: PDFFacts.allowsPrinting($0)) },
+                fileExists: FileManager.default.fileExists(atPath: url.path))
+        })
     }
 
     var canPrint: Bool { blockReason == nil }
@@ -276,8 +215,8 @@ final class PrintController: NSObject, NSTextFieldDelegate {
         let title = document?.displayName ?? "roneo"
         jobGeneration += 1
         let generation = jobGeneration
-        sending = true
-        show("Sending…")
+        state.sending = true
+        show(BarState.sendingReason)
         render()
         let submitter = PrintSubmitter(emptyHome: PrinterDirectory.emptyHome)
         queue.async { [weak self] in
@@ -292,7 +231,7 @@ final class PrintController: NSObject, NSTextFieldDelegate {
             }
             DispatchQueue.main.async {
                 guard let self else { return }
-                self.sending = false
+                self.state.sending = false
                 switch result {
                 case .success(let id):
                     self.show(sent, generation: generation)
@@ -321,7 +260,7 @@ final class PrintController: NSObject, NSTextFieldDelegate {
                 var stop = false
                 DispatchQueue.main.sync {
                     guard let self, self.jobGeneration == generation else { stop = true; return }
-                    if let state { self.show(state, generation: generation) } else { self.show(Self.unreachable) }
+                    if let state { self.show(state, generation: generation) } else { self.show(BarState.unreachable) }
                 }
                 if stop || state?.isFinal == true { return }
             }
@@ -341,7 +280,7 @@ final class PrintController: NSObject, NSTextFieldDelegate {
     private static func describe(_ error: Error) -> String {
         guard let cups = error as? CupsError else { return error.localizedDescription }
         let text = cups.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
-        return text.isEmpty ? unreachable : text
+        return text.isEmpty ? BarState.unreachable : text
     }
 
     // MARK: Rendering
@@ -350,7 +289,7 @@ final class PrintController: NSObject, NSTextFieldDelegate {
     /// can't be used stays in place, disabled, with the reason as its tooltip.
     private func render() {
         let caps = selectedCapabilities
-        let blocked = controlsBlocked
+        let blocked = state.controlsBlocked
 
         bar.setCurrentPage((windowController?.currentPageIndex ?? 0) + 1, of: pdf?.pageCount ?? 1)
 
@@ -412,21 +351,21 @@ final class PrintController: NSObject, NSTextFieldDelegate {
     /// Titles each queue with its description; the queue name rides in `representedObject`.
     private func renderPrinterPopup(blocked: String?) {
         let popup = bar.printer
-        let names = printers ?? []
+        let names = state.printers ?? []
         if popup.itemArray.map({ $0.representedObject as? String }) != names.map(Optional.some) || names.isEmpty {
             popup.removeAllItems()
             if names.isEmpty {
-                popup.addItem(withTitle: printers == nil ? Self.loadingReason : "No printers")
+                popup.addItem(withTitle: state.printers == nil ? BarState.loadingReason : "No printers")
             }
             // Through the menu: `addItem(withTitle:)` drops a title already present.
             for name in names {
-                let item = NSMenuItem(title: descriptions[name] ?? name, action: nil, keyEquivalent: "")
+                let item = NSMenuItem(title: state.descriptions[name] ?? name, action: nil, keyEquivalent: "")
                 item.representedObject = name
                 popup.menu?.addItem(item)
             }
         }
-        if let selectedPrinter { popup.selectItem(at: popup.indexOfItem(withRepresentedObject: selectedPrinter)) }
-        popup.isEnabled = !names.isEmpty && !loadingOptions
+        if let selected = state.selectedPrinter { popup.selectItem(at: popup.indexOfItem(withRepresentedObject: selected)) }
+        popup.isEnabled = !names.isEmpty && !state.loadingOptions
         popup.toolTip = popup.isEnabled ? popup.titleOfSelectedItem : blocked
     }
 
