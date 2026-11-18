@@ -1,5 +1,5 @@
 {
-  "originHash" : "2bd89404d09f2110b7a488d4b3daee79cec8cb6c9a642ec2a6cc74f045b8db06",
+  "originHash" : "9108d4da1929381638dc63c7ae327694bf8faf3823cbbe197ae6db961ebc0177",
   "pins" : [
     {
       "identity" : "sparkle",
@@ -8,6 +8,15 @@
       "state" : {
         "revision" : "eef1a539a373c1f1a320624b1130fc5de7b2e100",
         "version" : "2.10.0"
+      }
+    },
+    {
+      "identity" : "swift-property-based",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/x-sheep/swift-property-based",
+      "state" : {
+        "revision" : "7d405e77a7b729390ed1d9a66e1f80a707fd03c4",
+        "version" : "2.0.1"
       }
     }
   ],
