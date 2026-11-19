@@ -14,7 +14,7 @@ public enum JobBuilder {
         var a = ["-d", settings.printer, "-n", "\(settings.copies)",
                  "-o", "sides=\(sides)",
                  "-o", "print-scaling=\(settings.scale == .actual ? "none" : "fit")",
-                 "-o", "number-up=1", "-o", "page-set=all", "-o", "mirror=false"]
+                 "-o", "number-up=1", "-o", "page-set=all", "-o", "mirror=false", "-o", "collate=true"]
         if settings.scale == .actual { a += ["-o", "fit-to-page=false"] }
         switch settings.pages {
         case .all: break

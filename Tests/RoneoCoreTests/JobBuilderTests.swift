@@ -27,7 +27,7 @@ final class JobBuilderTests: XCTestCase {
         XCTAssertEqual(args(base { $0.sides = .single }), [
             "-d", "B", "-n", "1",
             "-o", "sides=one-sided", "-o", "print-scaling=none", "-o", "number-up=1",
-            "-o", "page-set=all", "-o", "mirror=false", "-o", "fit-to-page=false",
+            "-o", "page-set=all", "-o", "mirror=false", "-o", "collate=true", "-o", "fit-to-page=false",
             "-o", "PageSize=A4", "-o", "MediaType=any", "-o", "InputSlot=auto", "-o", "ColorModel=RGB",
             "-t", "Label sheet.pdf", "--", "/tmp/doc.pdf",
         ])
