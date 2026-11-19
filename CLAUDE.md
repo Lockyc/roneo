@@ -13,7 +13,7 @@ links:
 Native macOS PDF viewer with an in-window print bar. Swift package, AppKit, PDFKit, macOS 27+.
 Pre-1.0. The repo is public: tracked files carry no hostnames, usernames or machine paths. Read
 [docs/architecture.md](docs/architecture.md) before changing the viewer, the print bar or the
-print path.
+print path. Deferred work is in [docs/FOLLOWUPS.md](docs/FOLLOWUPS.md).
 
 ## Layout
 
