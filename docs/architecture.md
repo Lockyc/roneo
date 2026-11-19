@@ -101,8 +101,7 @@ attributes); a CUPS query is cut off after `ProcessRunner.timeout`, `lp` after
 sandboxed.
 
 - Every job carries the bar's options plus explicit neutral values for each layout-changing
-  option: `number-up=1`, no fit-to-page, all sides of `page-set`, no mirror, collated copies.
-  Uncollated copies of a double-sided job print each page on both sides of one sheet.
+  option: `number-up=1`, no fit-to-page, all sides of `page-set`, no mirror.
 - User-saved defaults never apply: the CUPS client runs with `HOME` pointed at an empty
   directory, so `~/.cups/lpoptions` cannot change size or layout. The driver's own quality
   defaults (resolution, toner save) pass through untouched.
