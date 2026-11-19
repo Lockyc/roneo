@@ -1,6 +1,12 @@
 import Foundation
 
 public enum JobBuilder {
+    /// The `MediaType` choice macOS adds to a driverless printer's PPD as its default. CUPS sends it
+    /// as `media-type=auto`, which such a printer may not support; a Brother HL-L3280CDW given it
+    /// ignores the job's `sides` too and prints one-sided. A job on this choice names no type, so
+    /// the printer uses its own default.
+    public static let anyMediaType = "any"
+
     /// Arguments for `/usr/bin/lp`. Assumes `Preflight` passed; an unnormalisable range is passed
     /// through raw so CUPS rejects the job rather than printing every page. `title` names the job in
     /// the queue, since `file` is a scratch copy.
@@ -22,7 +28,8 @@ public enum JobBuilder {
         case .range(let text):
             a += ["-o", "page-ranges=\(PageRange.normalize(text, pageCount: pageCount) ?? text)"]
         }
-        for (key, value) in [("PageSize", settings.paper), ("MediaType", settings.mediaType),
+        let mediaType = settings.mediaType == anyMediaType ? nil : settings.mediaType
+        for (key, value) in [("PageSize", settings.paper), ("MediaType", mediaType),
                              ("InputSlot", settings.tray), ("ColorModel", settings.colour)] {
             if let value { a += ["-o", "\(key)=\(value)"] }
         }

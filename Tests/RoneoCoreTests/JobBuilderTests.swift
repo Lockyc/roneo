@@ -28,9 +28,19 @@ final class JobBuilderTests: XCTestCase {
             "-d", "B", "-n", "1",
             "-o", "sides=one-sided", "-o", "print-scaling=none", "-o", "number-up=1",
             "-o", "page-set=all", "-o", "mirror=false", "-o", "fit-to-page=false",
-            "-o", "PageSize=A4", "-o", "MediaType=any", "-o", "InputSlot=auto", "-o", "ColorModel=RGB",
+            "-o", "PageSize=A4", "-o", "InputSlot=auto", "-o", "ColorModel=RGB",
             "-t", "Label sheet.pdf", "--", "/tmp/doc.pdf",
         ])
+    }
+
+    /// The Brother drops double-sided when sent the media type `any` maps to.
+    func testAnyMediaTypeIsOmitted() {
+        XCTAssertEqual(base().mediaType, "any")
+        XCTAssertFalse(args(base()).contains { $0.hasPrefix("MediaType=") })
+    }
+
+    func testChosenMediaTypeIsSent() {
+        XCTAssertTrue(args(base { $0.mediaType = "stationery" }).contains("MediaType=stationery"))
     }
 
     func testDoublePortraitUsesLongEdge() {
