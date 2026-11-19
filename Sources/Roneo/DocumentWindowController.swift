@@ -261,12 +261,13 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
 
     // MARK: File menu
 
-    /// ⌘P: sends the job with the print bar's settings.
+    /// File → Print: sends the job with the print bar's settings. It has no shortcut, so a reflexive
+    /// ⌘P opens the system dialog instead of sending a job.
     @objc func printFromBar(_ sender: Any?) {
         printController?.printFromBar()
     }
 
-    /// The system print dialog for what the print bar doesn't cover, at 100% by default.
+    /// ⌘P: the system print dialog for what the print bar doesn't cover, at 100% by default.
     @objc func printWithSystemDialog(_ sender: Any?) {
         guard let window, let doc = pdfView.document, let info = document?.printInfo,
               let operation = doc.printOperation(for: info, scalingMode: .pageScaleNone, autoRotate: true)

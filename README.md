@@ -42,9 +42,9 @@ just run      # build and launch build/roneo.app
   Grey as the printer offers them. Every new window starts from the same defaults: the system
   default printer, its own sides, paper, type, tray and colour, 100%, all pages, one copy.
   Double binds on the long edge, or the short edge when the first page is landscape.
-- **What Print sends.** ⌘P or the Print button sends the PDF file itself to the printer, never a
-  re-rendering: exact 100% unless Fit is chosen, with no system dialog. **File → Print with
-  System Dialog…** (⌥⌘P) covers anything else. The bar then shows the job's state until the next
+- **What Print sends.** The Print button sends the PDF file itself to the printer, never a
+  re-rendering: exact 100% unless Fit is chosen, with no system dialog. ⌘P opens **File → Print
+  with System Dialog…** for anything else. The bar then shows the job's state until the next
   print.
 - **Locked and no-print PDFs.** A password-protected PDF asks for its password to view and
   prints from an unlocked copy. One that forbids printing keeps Print disabled, with the reason

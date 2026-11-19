@@ -83,8 +83,8 @@ show. Defaults, identical for every new window:
   supports them. Nothing is persisted across windows, documents or launches.
 - Fit shrinks or grows each page to the printable area. Current is the page shown in the view,
   named in its segment ("Current (4)").
-- ⌘P (File → Print) and the Print button send the job immediately with the bar's settings. "Print with System Dialog…"
-  (⌥⌘P) in the File menu covers anything the bar does not.
+- File → Print and the Print button send the job immediately with the bar's settings; neither
+  has a shortcut. ⌘P opens "Print with System Dialog…", which covers anything the bar does not.
 - After sending, the right end of the bar shows the job's state from CUPS (`JobState.text`:
   "Sent · 3 pages", "Sent · page 4", "Printing", "Done", "Didn't print: …", "Couldn't find the
   job (…)") until the next print.

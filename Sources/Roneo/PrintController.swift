@@ -186,7 +186,7 @@ final class PrintController: NSObject, NSTextFieldDelegate {
     /// The document's PDF, which exists (locked or not) before the view shows it.
     private var pdf: PDFDocument? { document?.pdf }
 
-    /// Why Print is unavailable now, or nil when ⌘P and Print send the job.
+    /// Why Print is unavailable now, or nil when Print sends the job.
     private var blockReason: String? {
         state.blockReason(document: document?.fileURL.map { url in
             BarState.Document(
@@ -200,8 +200,8 @@ final class PrintController: NSObject, NSTextFieldDelegate {
 
     @objc private func printClicked(_ sender: Any?) { printFromBar() }
 
-    /// Sends the job with exactly the bar's settings, then follows it in CUPS. A held ⌘P's key
-    /// repeats are ignored, so holding it sends one job.
+    /// Sends the job with exactly the bar's settings, then follows it in CUPS. A held key's
+    /// repeats (Space on a focused Print button) are ignored, so holding it sends one job.
     func printFromBar() {
         if let event = NSApp.currentEvent, event.type == .keyDown, event.isARepeat { return }
         guard blockReason == nil, let settings, let pdf, let data = document?.data,
@@ -345,7 +345,7 @@ final class PrintController: NSObject, NSTextFieldDelegate {
 
         let reason = blockReason
         bar.printButton.isEnabled = reason == nil
-        bar.printButton.toolTip = reason ?? "Print with these settings (⌘P)"
+        bar.printButton.toolTip = reason ?? "Print with these settings"
     }
 
     /// Titles each queue with its description; the queue name rides in `representedObject`.
