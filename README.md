@@ -60,7 +60,7 @@ just run      # build and launch build/roneo.app
 
 ## Status
 
-Early, pre-1.0.
+Early, pre-1.0. What's next: [docs/FOLLOWUPS.md](docs/FOLLOWUPS.md).
 
 ## Development
 
