@@ -12,7 +12,7 @@ single- and double-sided, then find the scale setting and move it from Scale to 
 roneo is a fast native PDF viewer that keeps those controls in the window. The print bar shows
 every setting the job will use, and Print sends the PDF straight to the printer at true 100%.
 
-![roneo showing a label sheet, with the print bar above the page: printer, sides, scale, pages and copies on the first row; paper, type, tray and colour on the second](docs/screenshots/roneo.png)
+![roneo showing a label sheet, with the print bar across the window: printer, paper, type and tray on the first row; pages, sides, scale and colour on the second; copies and Print at the right](docs/screenshots/roneo.png)
 
 ## Install
 
@@ -37,9 +37,9 @@ just run      # build and launch build/roneo.app
   The view reloads when the file changes on disk, so a regenerated PDF reprints without
   reopening. Windows reopen where you left them. **roneo → Make roneo the default PDF viewer**
   sets it as the app PDFs open in.
-- **The print bar.** Always visible above the page: Printer, Sides (Single or Double), Scale
-  (100% or Fit), Pages (All, Current or a Range), Copies, then Paper, Type, Tray and Colour or
-  Grey as the printer offers them. Every new window starts from the same defaults: the system
+- **The print bar.** Always visible across the top of the window: Printer, Paper, Type and Tray
+  as the printer offers them, then Pages (All, Current or a Range), Sides (Single or Double),
+  Scale (100% or Fit) and Colour or Grey, with Copies above Print. Every new window starts from the same defaults: the system
   default printer, its own sides, paper, type, tray and colour, 100%, all pages, one copy.
   Double binds on the long edge, or the short edge when the first page is landscape.
 - **What Print sends.** The Print button sends the PDF file itself to the printer, never a
