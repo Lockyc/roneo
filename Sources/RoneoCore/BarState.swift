@@ -53,8 +53,6 @@ public struct BarState: Sendable {
 
     public static let loadingReason = "Loading printers…"
     public static let unreachable = "Can't reach the print system"
-    /// Shown before any settings exist for `Preflight` to judge; the same words it uses.
-    public static let noPrinters = "No printers set up"
     public static let noPDF = "No PDF open"
     public static let locked = "Unlock the PDF to print"
     public static let sendingReason = "Sending…"
@@ -131,7 +129,7 @@ public struct BarState: Sendable {
     /// Why the setting controls are unavailable, or nil when there are settings to show.
     public var controlsBlocked: String? {
         guard let printers, !loadingOptions else { return Self.loadingReason }
-        if printers.isEmpty { return loadFailure ?? Self.noPrinters }
+        if printers.isEmpty { return loadFailure ?? Preflight.noPrinters }
         return settings == nil ? optionsFailure ?? Self.loadingReason : nil
     }
 
