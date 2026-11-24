@@ -322,7 +322,7 @@ final class PrintController: NSObject, NSTextFieldDelegate {
                 bar.range.toolTip = "Choose Range to enter pages"
             }
             if bar.copies.currentEditor() == nil { bar.copies.stringValue = "\(settings.copies)" }
-            bar.copiesStepper.integerValue = min(max(settings.copies, 1), 999)
+            bar.copiesStepper.integerValue = min(max(settings.copies, Int(bar.copiesStepper.minValue)), Int(bar.copiesStepper.maxValue))
             let media: [(NSPopUpButton, String, String?, String)] = [
                 (bar.paper, "PageSize", settings.paper, "This printer has no paper size choice"),
                 (bar.mediaType, "MediaType", settings.mediaType, "This printer has no paper type choice"),
