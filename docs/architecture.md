@@ -93,7 +93,8 @@ show. Defaults, identical for every new window:
 
 The bytes the window shows go to CUPS (from a scratch copy, deleted once `lp` returns),
 equivalent to `lp -d <printer> -n <copies> -o sides=… -o print-scaling=none|fit
--o page-ranges=… -o PageSize=… -o MediaType=… -o InputSlot=… -o ColorModel=… -t <document name>`. Pages are never
+-o page-ranges=… -o PageSize=… -o MediaType=… -o InputSlot=… -o ColorModel=… -t <document name>`,
+with no `MediaType` for `JobBuilder.anyMediaType`. Pages are never
 re-rendered by the app, so 100% is byte-exact; page ranges go ascending and merged. The printer
 list and each printer's options come from CUPS (destinations and the printer's PPD or IPP
 attributes); a CUPS query is cut off after `ProcessRunner.timeout`, `lp` after
@@ -101,7 +102,7 @@ attributes); a CUPS query is cut off after `ProcessRunner.timeout`, `lp` after
 sandboxed.
 
 - Every job carries the bar's options plus explicit neutral values for each layout-changing
-  option: `number-up=1`, no fit-to-page, all sides of `page-set`, no mirror.
+  option: `number-up=1`, no fit-to-page at 100%, all sides of `page-set`, no mirror.
 - User-saved defaults never apply: the CUPS client runs with `HOME` pointed at an empty
   directory, so `~/.cups/lpoptions` cannot change size or layout. The driver's own quality
   defaults (resolution, toner save) pass through untouched.
