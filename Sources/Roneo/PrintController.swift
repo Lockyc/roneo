@@ -355,7 +355,7 @@ final class PrintController: NSObject, NSTextFieldDelegate {
         if popup.itemArray.map({ $0.representedObject as? String }) != names.map(Optional.some) || names.isEmpty {
             popup.removeAllItems()
             if names.isEmpty {
-                popup.addItem(withTitle: state.printers == nil ? BarState.loadingReason : "No printers")
+                popup.addItem(withTitle: blocked ?? Preflight.noPrinters)
             }
             // Through the menu: `addItem(withTitle:)` drops a title already present.
             for name in names {

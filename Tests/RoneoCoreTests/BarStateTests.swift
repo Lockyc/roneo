@@ -53,8 +53,10 @@ final class BarStateTests: XCTestCase {
         var state = BarState()
         XCTAssertEqual(state.blockReason(document: nil), BarState.noPDF)
         XCTAssertEqual(state.blockReason(document: document), BarState.loadingReason)
+        XCTAssertEqual(state.controlsBlocked, BarState.loadingReason)
         state.printersLoaded(.failure(Unreachable()))
         XCTAssertEqual(state.blockReason(document: document), BarState.unreachable)
+        XCTAssertEqual(state.controlsBlocked, BarState.unreachable)
     }
 
     func testSendingBlocksASecondPrint() {
