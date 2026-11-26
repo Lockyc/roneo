@@ -2,7 +2,7 @@ import Foundation
 
 /// Which version of a file is on disk: its identity, size and modification date. Two stamps differ
 /// only when the file's content may have changed. Reading the file, or touching its access date or
-/// extended attributes, leaves the stamp alone; the file presenter is told of those as changes.
+/// extended attributes, leaves the stamp alone; those are still reported as changes.
 public struct FileStamp: Equatable, Sendable {
     public let fileNumber: Int
     public let size: Int

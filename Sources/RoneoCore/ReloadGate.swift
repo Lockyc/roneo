@@ -33,7 +33,7 @@ public struct ReloadGate<View> {
         loadedStamp = stamp
     }
 
-    /// The file presenter reported a change. `stamp` and `size` are the file's now; `view` is the
+    /// The file may have changed (`FileWatcher` or the file presenter). `stamp` and `size` are the file's now; `view` is the
     /// window's view, or nil when there is none to keep (a locked PDF). Returns true when the
     /// caller should (re)start the settle wait.
     public mutating func changed(stamp: FileStamp?, size: Int?, view: View?) -> Bool {

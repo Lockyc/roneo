@@ -1,4 +1,5 @@
 import AppKit
+import OSLog
 import PDFKit
 import RoneoCore
 
@@ -19,9 +20,11 @@ import RoneoCore
     private var passwordSheetIsUp = false
     private var reload = ReloadGate<DocumentWindowController.ViewState>()
     private var reloadTimer: Timer?
+    private var watcher: FileWatcher?
+    private static let log = Logger(subsystem: "com.lockyc.roneo", category: "reload")
 
     /// How long the file must go without changing before it is re-read.
-    private static let settleDelay: TimeInterval = 0.25
+    private static let settleDelay: TimeInterval = 0.1
 
     override class var autosavesInPlace: Bool { false }
     override class var autosavesDrafts: Bool { false }
@@ -85,6 +88,7 @@ import RoneoCore
     private func present(restoring view: DocumentWindowController.ViewState?) {
         guard !didPresent, let pdf, let controller else { return }
         didPresent = true
+        watch()
         if pdf.isLocked {
             askForPassword(wrong: false)
         } else {
@@ -128,22 +132,50 @@ import RoneoCore
 
     // MARK: Reload on change
 
-    /// Re-reads the file once it has stopped changing (`ReloadGate`), keeping the window's page and
-    /// zoom; a file that can't be read leaves the last good content on screen.
-    override func presentedItemDidChange() {
-        DispatchQueue.main.async { [weak self] in
-            guard let self, let url = self.fileURL else { return }
-            let view = self.pdf?.isLocked == false ? self.controller?.viewState : nil
-            guard self.reload.changed(stamp: FileStamp(of: url), size: self.fileSize, view: view) else { return }
-            self.startSettleTimer()
-            self.controller?.printController?.refresh()
+    /// The file at `fileURL` is watched (`FileWatcher`) from when the document is first shown, and
+    /// the watch follows a move of the file.
+    override var fileURL: URL? {
+        didSet {
+            guard fileURL != oldValue else { return }
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.watcher != nil else { return }
+                self.watch()
+            }
         }
     }
 
-    /// A deleted file leaves the window showing its last content; Print disables.
+    private func watch() {
+        watcher?.cancel()
+        watcher = fileURL.map { FileWatcher(url: $0) { [weak self] in self?.fileMayHaveChanged() } }
+    }
+
+    override func close() {
+        watcher?.cancel()
+        watcher = nil
+        reloadTimer?.invalidate()
+        super.close()
+    }
+
+    /// Coordinated writes reach the document as a presenter too; both feed the same gate.
+    override func presentedItemDidChange() {
+        DispatchQueue.main.async { [weak self] in self?.fileMayHaveChanged() }
+    }
+
+    /// Re-reads the file once it has stopped changing (`ReloadGate`), keeping the window's page and
+    /// zoom; a file that can't be read leaves the last good content on screen, and a deleted one
+    /// disables Print.
+    private func fileMayHaveChanged() {
+        guard let url = fileURL else { return }
+        let view = pdf?.isLocked == false ? controller?.viewState : nil
+        guard reload.changed(stamp: FileStamp(of: url), size: fileSize, view: view) else { return }
+        Self.log.debug("change seen, settling")
+        startSettleTimer()
+        controller?.printController?.refresh()
+    }
+
     override func accommodatePresentedItemDeletion(completionHandler: @escaping (Error?) -> Void) {
         completionHandler(nil)
-        DispatchQueue.main.async { [weak self] in self?.controller?.printController?.refresh() }
+        DispatchQueue.main.async { [weak self] in self?.fileMayHaveChanged() }
     }
 
     private var fileSize: Int? {
@@ -160,7 +192,9 @@ import RoneoCore
 
     private func reloadIfSettled() {
         reloadTimer = nil
-        switch reload.settled(size: fileSize) {
+        let settle = reload.settled(size: fileSize)
+        Self.log.info("settled: \(String(describing: settle), privacy: .public)")
+        switch settle {
         case .keepLastContent: return
         case .wait: startSettleTimer()
         case .reload: revertToFile()
@@ -173,6 +207,7 @@ import RoneoCore
         do {
             try revert(toContentsOf: url, ofType: fileType)
         } catch {
+            Self.log.error("reload failed, keeping last content: \(error.localizedDescription, privacy: .public)")
             (pdf, data, reload) = previous
             return
         }

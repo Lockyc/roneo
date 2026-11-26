@@ -18,7 +18,7 @@ print path. Deferred work is in [docs/FOLLOWUPS.md](docs/FOLLOWUPS.md).
 ## Layout
 
 - `Sources/RoneoCore/` — Foundation only; never AppKit or PDFKit. Every decision the unit tests
-  cover lives here: settings, `Preflight`, `JobBuilder`, `Cups`, `BarChoices`, `BarState`, `FileStamp`, `ReloadGate`.
+  cover lives here: settings, `Preflight`, `JobBuilder`, `Cups`, `BarChoices`, `BarState`, `FileWatcher`, `FileStamp`, `ReloadGate`.
 - `Sources/RoneoPDF/` — Foundation and PDFKit only; no AppKit views.
 - `Sources/Roneo/` — the AppKit executable (Sparkle for updates); no unit tests, so it takes its
   decisions from the two libraries. `PrintController` owns one window's print bar and takes over
